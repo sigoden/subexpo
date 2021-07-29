@@ -8,18 +8,18 @@ generator client {
 }
 
 model ChainBlock {
-  id              Int      @id @default(autoincrement())
+  id              Int              @id @default(autoincrement())
   blockNum        Int
   blockTimestamp  Int
   hash            String
   parentHash      String
   stateRoot       String
   extrinsicsRoot  String
-  logs            String
-  extrinsics      String   @db.MediumText
+  logs            ChainLog[]
+  extrinsics      ChainExtrinsic[]
   eventCount      Int
   extrinsicsCount Int
-  event           String   @db.MediumText
+  events          ChainEvent[]
   specVersion     Int
   validator       String
   codecError      Boolean
@@ -27,53 +27,59 @@ model ChainBlock {
 }
 
 model ChainEvent {
-  id              Int      @id @default(autoincrement())
-  EventIndex      String
-  BlockNum        Int
-	ExtrinsicIdx    Int
-  Type            String
-  ModuleId        String
-  EventId         String
-  Params          String   @db.Text
-  ExtrinsicHash   String
-  EventIdx        Int
+  id            Int         @id @default(autoincrement())
+  eventIndex    String
+  blockNum      Int
+  extrinsicIdx  Int
+  type          String
+  moduleId      String
+  eventId       String
+  params        String      @db.Text
+  extrinsicHash String
+  eventIdx      Int
+  ChainBlock    ChainBlock? @relation(fields: [chainBlockId], references: [id])
+  chainBlockId  Int?
 }
 
 model ChainExtrinsic {
-  id                 Int      @id @default(autoincrement())
-	extrinsicIndex     String
-	blockNum           Int
-	blockTimestamp     Int
-	extrinsicLength    String
-	versionInfo        String
-	callCode           String
-	callModuleFunction String
-	callModule         String
-	params             String   @db.MediumText
-	accountId          String
-	signature          String
-	nonce              Int
-	era                String
-	extrinsicHash      String
-	isSigned           Boolean
-	success            Boolean
-	fee                BigInt
-	batchIndex         Int
-}
-
-model RuntimeVersion {
-  id          Int     @id @default(autoincrement())
-	name        String
-	specVersion Int
-	modules     String  @db.Text
-	rawData     String  @db.MediumText
+  id                 Int         @id @default(autoincrement())
+  extrinsicIndex     String
+  blockNum           Int
+  blockTimestamp     Int
+  extrinsicLength    String
+  versionInfo        String
+  callCode           String
+  callModuleFunction String
+  callModule         String
+  params             String      @db.MediumText
+  accountId          String
+  signature          String
+  nonce              Int
+  era                String
+  extrinsicHash      String
+  isSigned           Boolean
+  success            Boolean
+  fee                BigInt
+  batchIndex         Int
+  ChainBlock         ChainBlock? @relation(fields: [chainBlockId], references: [id])
+  chainBlockId       Int?
 }
 
 model ChainLog {
-  id        Int     @id @default(autoincrement())
-	blockNum  Int
-	logIndex  String
-	logType   String
-	data      String
-	finalized Boolean
+  id           Int         @id @default(autoincrement())
+  blockNum     Int
+  logIndex     String
+  logType      String
+  data         String
+  finalized    Boolean
+  ChainBlock   ChainBlock? @relation(fields: [chainBlockId], references: [id])
+  chainBlockId Int?
+}
+
+model RuntimeVersion {
+  id          Int    @id @default(autoincrement())
+  name        String
+  specVersion Int
+  modules     String @db.Text
+  rawData     String @db.MediumText
 }
