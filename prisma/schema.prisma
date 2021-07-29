@@ -1,0 +1,79 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model ChainBlock {
+  id              Int      @id @default(autoincrement())
+  blockNum        Int
+  blockTimestamp  Int
+  hash            String
+  parentHash      String
+  stateRoot       String
+  extrinsicsRoot  String
+  logs            String
+  extrinsics      String   @db.MediumText
+  eventCount      Int
+  extrinsicsCount Int
+  event           String   @db.MediumText
+  specVersion     Int
+  validator       String
+  codecError      Boolean
+  finalized       Boolean
+}
+
+model ChainEvent {
+  id              Int      @id @default(autoincrement())
+  EventIndex      String
+  BlockNum        Int
+	ExtrinsicIdx    Int
+  Type            String
+  ModuleId        String
+  EventId         String
+  Params          String   @db.Text
+  ExtrinsicHash   String
+  EventIdx        Int
+}
+
+model ChainExtrinsic {
+  id                 Int      @id @default(autoincrement())
+	extrinsicIndex     String
+	blockNum           Int
+	blockTimestamp     Int
+	extrinsicLength    String
+	versionInfo        String
+	callCode           String
+	callModuleFunction String
+	callModule         String
+	params             String   @db.MediumText
+	accountId          String
+	signature          String
+	nonce              Int
+	era                String
+	extrinsicHash      String
+	isSigned           Boolean
+	success            Boolean
+	fee                BigInt
+	batchIndex         Int
+}
+
+model RuntimeVersion {
+  id          Int     @id @default(autoincrement())
+	name        String
+	specVersion Int
+	modules     String  @db.Text
+	rawData     String  @db.MediumText
+}
+
+model ChainLog {
+  id        Int     @id @default(autoincrement())
+	blockNum  Int
+	logIndex  String
+	logType   String
+	data      String
+	finalized Boolean
+}
