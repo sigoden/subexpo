@@ -1,5 +1,5 @@
 {
-  "name": "script",
+  "name": "subexpo",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "15.12.4",
@@ -8,7 +8,7 @@
     "typescript": "4.3.5"
   },
   "scripts": {
-    "dev": "ts-node ./script.ts"
+    "dev": "ts-node ./index.ts"
   },
   "dependencies": {
     "@polkadot/api": "^5.2.1",

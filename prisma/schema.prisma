@@ -10,20 +10,19 @@ generator client {
 model ChainBlock {
   id              Int              @id @default(autoincrement())
   blockNum        Int
-  blockTimestamp  Int
+  blockTimestamp  DateTime
   hash            String
   parentHash      String
   stateRoot       String
   extrinsicsRoot  String
   logs            ChainLog[]
   extrinsics      ChainExtrinsic[]
-  eventCount      Int
   extrinsicsCount Int
   events          ChainEvent[]
+  eventCount      Int
   specVersion     Int
   validator       String
-  codecError      Boolean
-  finalized       Boolean
+  finalized       Boolean          @default(false)
 }
 
 model ChainEvent {
@@ -31,10 +30,9 @@ model ChainEvent {
   eventIndex    String
   blockNum      Int
   extrinsicIdx  Int
-  type          String
-  moduleId      String
-  eventId       String
-  params        String      @db.Text
+  section       String
+  method        String
+  data          Json
   extrinsicHash String
   eventIdx      Int
   ChainBlock    ChainBlock? @relation(fields: [chainBlockId], references: [id])
@@ -42,27 +40,25 @@ model ChainEvent {
 }
 
 model ChainExtrinsic {
-  id                 Int         @id @default(autoincrement())
-  extrinsicIndex     String
-  blockNum           Int
-  blockTimestamp     Int
-  extrinsicLength    String
-  versionInfo        String
-  callCode           String
-  callModuleFunction String
-  callModule         String
-  params             String      @db.MediumText
-  accountId          String
-  signature          String
-  nonce              Int
-  era                String
-  extrinsicHash      String
-  isSigned           Boolean
-  success            Boolean
-  fee                BigInt
-  batchIndex         Int
-  ChainBlock         ChainBlock? @relation(fields: [chainBlockId], references: [id])
-  chainBlockId       Int?
+  id              Int         @id @default(autoincrement())
+  extrinsicIndex  String
+  blockNum        Int
+  blockTimestamp  DateTime
+  extrinsicLength Int
+  versionInfo     Int
+  method          String
+  section         String
+  args            Json
+  accountId       String?
+  signature       String?
+  nonce           Int
+  extrinsicHash   String
+  isSigned        Boolean
+  success         Boolean
+  fee             BigInt
+  tip             BigInt
+  ChainBlock      ChainBlock? @relation(fields: [chainBlockId], references: [id])
+  chainBlockId    Int?
 }
 
 model ChainLog {
@@ -70,8 +66,8 @@ model ChainLog {
   blockNum     Int
   logIndex     String
   logType      String
-  data         String
-  finalized    Boolean
+  data         Json
+  finalized    Boolean     @default(false)
   ChainBlock   ChainBlock? @relation(fields: [chainBlockId], references: [id])
   chainBlockId Int?
 }
