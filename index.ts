@@ -152,7 +152,7 @@ async function saveBlock(header: Header, finalized: boolean) {
   });
   const logs = signedBlock.block.header.digest.logs.map((log, index) => {
     return {
-      logIndex: `${blockNum}-${index}`,
+      logId: `${blockNum}-${index}`,
       blockNum,
       logType: log.type,
       data: log.value.toHuman() as any,

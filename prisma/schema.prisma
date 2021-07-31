@@ -60,7 +60,7 @@ model ChainExtrinsic {
 }
 
 model ChainLog {
-  logIndex   String      @id
+  logId      String      @id
   blockNum   Int
   logType    String
   data       Json
