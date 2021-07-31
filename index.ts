@@ -10,10 +10,10 @@ let api: ApiPromise;
 let chainSpecVersions = new Set();
 
 async function main() {
-  await initApi();
+  await startChain();
 }
 
-async function initApi() {
+async function startChain() {
   const provider = new WsProvider(process.env.ENDPOINT);
   api = await ApiPromise.create({ provider, types })
   const chainVersions = await prisma.chainVersion.findMany();
@@ -204,11 +204,4 @@ async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
   chainSpecVersions.add(specVersion);
 }
 
-
-main()
-  .catch(e => {
-    throw e;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  })
+main().catch(err => console.error(err));
