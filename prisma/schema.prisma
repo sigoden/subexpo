@@ -8,10 +8,9 @@ generator client {
 }
 
 model ChainBlock {
-  id              Int              @id @default(autoincrement())
-  blockNum        Int
+  blockNum        Int              @id
   blockAt         Int
-  blockHash       String
+  blockHash       String           @unique
   parentHash      String
   stateRoot       String
   extrinsicsRoot  String
@@ -26,9 +25,8 @@ model ChainBlock {
 }
 
 model ChainEvent {
-  id               Int             @id @default(autoincrement())
-  eventIndex       String
-  blockNum         Int
+  eventIndex       String          @id
+  blockNum         Int             
   blockAt          Int
   blockHash        String
   extrinsicIdx     Int
@@ -37,15 +35,12 @@ model ChainEvent {
   data             Json
   extrinsicHash    String
   eventIdx         Int
-  ChainBlock       ChainBlock?     @relation(fields: [chainBlockId], references: [id])
-  chainBlockId     Int?
-  ChainExtrinsic   ChainExtrinsic? @relation(fields: [chainExtrinsicId], references: [id])
-  chainExtrinsicId Int?
+  ChainBlock       ChainBlock?     @relation(fields: [blockNum], references: [blockNum])
+  ChainExtrinsic   ChainExtrinsic? @relation(fields: [extrinsicHash], references: [extrinsicHash])
 }
 
 model ChainExtrinsic {
-  id              Int          @id @default(autoincrement())
-  extrinsicIndex  String
+  extrinsicIndex  String       @id
   blockNum        Int
   blockAt         Int
   blockHash       String
@@ -58,24 +53,21 @@ model ChainExtrinsic {
   accountId       String?
   signature       String?
   nonce           Int
-  extrinsicHash   String
+  extrinsicHash   String       @unique
   isSigned        Boolean
   success         Boolean
   fee             BigInt
   tip             BigInt
-  ChainBlock      ChainBlock?  @relation(fields: [chainBlockId], references: [id])
-  chainBlockId    Int?
+  ChainBlock      ChainBlock?  @relation(fields: [blockNum], references: [blockNum])
 }
 
 model ChainLog {
-  id           Int         @id @default(autoincrement())
+  logIndex     String          @id
   blockNum     Int
-  logIndex     String
   logType      String
   data         Json
   finalized    Boolean     @default(false)
-  ChainBlock   ChainBlock? @relation(fields: [chainBlockId], references: [id])
-  chainBlockId Int?
+  ChainBlock   ChainBlock? @relation(fields: [blockNum], references: [blockNum])
 }
 
 model RuntimeVersion {

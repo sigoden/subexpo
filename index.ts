@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaClient, Prisma, ChainEvent } from '@prisma/client'
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Header } from "@polkadot/types/interfaces";
 const types = require("./types");
@@ -22,7 +22,7 @@ async function initApi() {
 async function addFinalizedHead(header: Header) {
   const blockNum = header.number.toNumber();
   const blockHash = header.hash.toHex();
-  let chainBlock = await prisma.chainBlock.findFirst({ where: { id: blockNum }});
+  let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum }});
   if (!chainBlock) {
     const signedBlock = await api.rpc.chain.getBlock(header.hash);
     const extHeader = await api.derive.chain.getHeader(header.hash);
@@ -35,7 +35,7 @@ async function addFinalizedHead(header: Header) {
         return api.rpc.payment.queryInfo(ex.toHex(), header.hash.toHex());
       }
     }));
-    const events: Prisma.ChainEventCreateInput[] = [];
+    const events: ChainEvent[] = [];
     const extrinsics = signedBlock.block.extrinsics.map((ex, index) => {
       const { isSigned, method: { method, section } } = ex;
 
@@ -103,14 +103,14 @@ async function addFinalizedHead(header: Header) {
     });
     const logs = signedBlock.block.header.digest.logs.map((log, index) => {
       return {
-        blockNum,
         logIndex: `${blockNum}-${index}`,
+        blockNum,
         logType: log.type,
         data: log.value.toHuman() as any,
       }
     });
 
-    chainBlock = await prisma.chainBlock.create({
+    await prisma.chainBlock.create({
       data: {
         blockNum,
         blockAt,
@@ -120,37 +120,20 @@ async function addFinalizedHead(header: Header) {
         extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
         eventCount: records.length,
         extrinsicsCount: extrinsics.length,
-        logs: {
-          createMany: {
-            data: logs,
-          }
-        },
-        extrinsics: {
-          createMany: {
-            data: extrinsics,
-          }
-        },
-        events: {
-          createMany: {
-            data: events,
-          }
-        },
         specVersion: runtimeVersion.specVersion.toNumber(),
         validator: extHeader?.author?.toString() || "",
       },
     });
 
-    const chainExtrinsics = await prisma.chainExtrinsic.findMany({
-      where: { chainBlockId: chainBlock.id },
+    await prisma.chainExtrinsic.createMany({
+      data: extrinsics,
     });
-    await Promise.all(chainExtrinsics.map(async chainExtrinsic => {
-      await prisma.chainEvent.updateMany({
-        where: { extrinsicHash: chainExtrinsic.extrinsicHash },
-        data: {
-          chainExtrinsicId: chainExtrinsic.id,
-        }
-      })
-    }));
+    await prisma.chainLog.createMany({
+      data: logs,
+    });
+    await prisma.chainEvent.createMany({
+      data: events,
+    });
   }
 }
 
