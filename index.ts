@@ -21,8 +21,9 @@ async function initApi() {
 
 async function addFinalizedHead(header: Header) {
   const blockNum = header.number.toNumber();
-  let blockModel = await prisma.chainBlock.findFirst({ where: { id: blockNum }});
-  if (!blockModel) {
+  const blockHash = header.hash.toHex();
+  let chainBlock = await prisma.chainBlock.findFirst({ where: { id: blockNum }});
+  if (!chainBlock) {
     const signedBlock = await api.rpc.chain.getBlock(header.hash);
     const extHeader = await api.derive.chain.getHeader(header.hash);
 
@@ -69,6 +70,8 @@ async function addFinalizedHead(header: Header) {
         events.push({
           eventIndex: `${blockNum}-${recordIndex}`,
           blockNum,
+          blockAt,
+          blockHash,
           extrinsicIdx: index,
           section,
           method,
@@ -82,6 +85,7 @@ async function addFinalizedHead(header: Header) {
         extrinsicIndex: `${blockNum}-${index}`,
         blockNum,
         blockAt,
+        blockHash,
         extrinsicLength: ex.length,
         versionInfo: ex.version,
         method,
@@ -106,11 +110,11 @@ async function addFinalizedHead(header: Header) {
       }
     });
 
-    await prisma.chainBlock.create({
+    chainBlock = await prisma.chainBlock.create({
       data: {
         blockNum,
         blockAt,
-        hash: signedBlock.hash.toHex(),
+        blockHash,
         parentHash: signedBlock.block.header.parentHash.toHex(),
         stateRoot: signedBlock.block.header.stateRoot.toHex(),
         extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
@@ -135,6 +139,18 @@ async function addFinalizedHead(header: Header) {
         validator: extHeader?.author?.toString() || "",
       },
     });
+
+    const chainExtrinsics = await prisma.chainExtrinsic.findMany({
+      where: { chainBlockId: chainBlock.id },
+    });
+    await Promise.all(chainExtrinsics.map(async chainExtrinsic => {
+      await prisma.chainEvent.updateMany({
+        where: { extrinsicHash: chainExtrinsic.extrinsicHash },
+        data: {
+          chainExtrinsicId: chainExtrinsic.id,
+        }
+      })
+    }));
   }
 }
 

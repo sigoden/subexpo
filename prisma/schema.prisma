@@ -11,7 +11,7 @@ model ChainBlock {
   id              Int              @id @default(autoincrement())
   blockNum        Int
   blockAt         Int
-  hash            String
+  blockHash       String
   parentHash      String
   stateRoot       String
   extrinsicsRoot  String
@@ -26,29 +26,35 @@ model ChainBlock {
 }
 
 model ChainEvent {
-  id            Int         @id @default(autoincrement())
-  eventIndex    String
-  blockNum      Int
-  extrinsicIdx  Int
-  section       String
-  method        String
-  data          Json
-  extrinsicHash String
-  eventIdx      Int
-  ChainBlock    ChainBlock? @relation(fields: [chainBlockId], references: [id])
-  chainBlockId  Int?
+  id               Int             @id @default(autoincrement())
+  eventIndex       String
+  blockNum         Int
+  blockAt          Int
+  blockHash        String
+  extrinsicIdx     Int
+  section          String
+  method           String
+  data             Json
+  extrinsicHash    String
+  eventIdx         Int
+  ChainBlock       ChainBlock?     @relation(fields: [chainBlockId], references: [id])
+  chainBlockId     Int?
+  ChainExtrinsic   ChainExtrinsic? @relation(fields: [chainExtrinsicId], references: [id])
+  chainExtrinsicId Int?
 }
 
 model ChainExtrinsic {
-  id              Int         @id @default(autoincrement())
+  id              Int          @id @default(autoincrement())
   extrinsicIndex  String
   blockNum        Int
   blockAt         Int
+  blockHash       String
   extrinsicLength Int
   versionInfo     Int
   method          String
   section         String
   args            Json
+  events          ChainEvent[]
   accountId       String?
   signature       String?
   nonce           Int
@@ -57,7 +63,7 @@ model ChainExtrinsic {
   success         Boolean
   fee             BigInt
   tip             BigInt
-  ChainBlock      ChainBlock? @relation(fields: [chainBlockId], references: [id])
+  ChainBlock      ChainBlock?  @relation(fields: [chainBlockId], references: [id])
   chainBlockId    Int?
 }
 
