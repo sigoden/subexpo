@@ -25,21 +25,21 @@ model ChainBlock {
 }
 
 model ChainEvent {
-  eventId       String          @id
-  blockNum         Int             
-  blockAt          Int
-  extrinsicIdx     Int
-  eventIdx         Int
-  section          String
-  method           String
-  data             Json
-  extrinsicHash    String
-  ChainBlock       ChainBlock?     @relation(fields: [blockNum], references: [blockNum])
-  ChainExtrinsic   ChainExtrinsic? @relation(fields: [extrinsicHash], references: [extrinsicHash])
+  eventId        String          @id
+  blockNum       Int
+  blockAt        Int
+  extrinsicIdx   Int
+  eventIdx       Int
+  section        String
+  method         String
+  data           Json
+  extrinsicHash  String
+  ChainBlock     ChainBlock?     @relation(fields: [blockNum], references: [blockNum])
+  ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicHash], references: [extrinsicHash])
 }
 
 model ChainExtrinsic {
-  extrinsicId  String       @id
+  extrinsicId     String       @id
   blockNum        Int
   blockAt         Int
   method          String
@@ -60,18 +60,16 @@ model ChainExtrinsic {
 }
 
 model ChainLog {
-  logIndex     String          @id
-  blockNum     Int
-  logType      String
-  data         Json
-  finalized    Boolean     @default(false)
-  ChainBlock   ChainBlock? @relation(fields: [blockNum], references: [blockNum])
+  logIndex   String      @id
+  blockNum   Int
+  logType    String
+  data       Json
+  finalized  Boolean     @default(false)
+  ChainBlock ChainBlock? @relation(fields: [blockNum], references: [blockNum])
 }
 
-model RuntimeVersion {
-  id          Int    @id @default(autoincrement())
-  name        String
-  specVersion Int
+model ChainVersion {
+  specVersion Int    @id
   modules     String @db.Text
-  rawData     String @db.MediumText
+  rawData     Json
 }

@@ -1,13 +1,14 @@
 import { PrismaClient, ChainEvent } from '@prisma/client'
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { CodecHash } from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
 const types = require("./types");
 
 const prisma = new PrismaClient()
 
 let api: ApiPromise;
+let prevSpecVersion = 0;
 
-// A `main` function so that you can use async/await
 async function main() {
   await initApi();
 }
@@ -29,6 +30,7 @@ async function syncChain() {
   const finalizedBlockNum = finalizedBlockHeader.number.toNumber();
   const chainBlock = await prisma.chainBlock.findFirst({ where: { finalized: true }, orderBy: { blockNum: "desc" }});
   const saveBlockNum = chainBlock?.blockNum || 0;
+  prevSpecVersion = chainBlock?.specVersion || 0;
   if (saveBlockNum === finalizedBlockNum) return false;
   for (let blockNum = saveBlockNum + 1; blockNum < finalizedBlockNum; blockNum++) {
     const blockHash = await api.rpc.chain.getBlockHash(blockNum);
@@ -51,15 +53,21 @@ async function saveBlock(header: Header, finalized: boolean) {
     ]);
   }
   let blockAt = 0;
-  const signedBlock = await api.rpc.chain.getBlock(header.hash);
-  const extHeader = await api.derive.chain.getHeader(header.hash);
-  const records = await api.query.system.events.at(signedBlock.block.header.hash);
-  const runtimeVersion = await api.rpc.state.getRuntimeVersion(header.hash);
+  const [signedBlock, extHeader, records, runtimeVersion] = await Promise.all([
+    api.rpc.chain.getBlock(header.hash),
+    api.derive.chain.getHeader(header.hash),
+    api.query.system.events.at(header.hash),
+    api.rpc.state.getRuntimeVersion(header.hash),
+  ]);
   const paymentInfos = await Promise.all(signedBlock.block.extrinsics.map(async ex => {
     if (ex.isSigned) {
       return api.rpc.payment.queryInfo(ex.toHex(), header.hash.toHex());
     }
   }));
+  const blockSpecVersion = runtimeVersion.specVersion.toNumber();
+  if (blockSpecVersion > prevSpecVersion) {
+    await checkSpecVersion(header.hash, blockSpecVersion);
+  }
   const events: ChainEvent[] = [];
   const extrinsics = signedBlock.block.extrinsics.map((ex, index) => {
     const { isSigned, method: { method, section } } = ex;
@@ -135,39 +143,57 @@ async function saveBlock(header: Header, finalized: boolean) {
     }
   });
 
-  await prisma.chainBlock.create({
-    data: {
-      blockNum,
-      blockAt,
-      blockHash,
-      parentHash: signedBlock.block.header.parentHash.toHex(),
-      stateRoot: signedBlock.block.header.stateRoot.toHex(),
-      extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
-      extrinsicsCount: extrinsics.length,
-      eventCount: events.length,
-      specVersion: runtimeVersion.specVersion.toNumber(),
-      validator: extHeader?.author?.toString() || "",
-      finalized,
-    },
-  });
+  await prisma.$transaction([
+    prisma.chainBlock.create({
+      data: {
+        blockNum,
+        blockAt,
+        blockHash,
+        parentHash: signedBlock.block.header.parentHash.toHex(),
+        stateRoot: signedBlock.block.header.stateRoot.toHex(),
+        extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
+        extrinsicsCount: extrinsics.length,
+        eventCount: events.length,
+        specVersion: blockSpecVersion,
+        validator: extHeader?.author?.toString() || "",
+        finalized,
+      },
+    }),
+    prisma.chainExtrinsic.createMany({
+      data: extrinsics,
+    }),
+    prisma.chainLog.createMany({
+      data: logs,
+    }),
+    prisma.chainEvent.createMany({
+      data: events,
+    }),
+  ]);
 
-  await prisma.chainExtrinsic.createMany({
-    data: extrinsics,
-  });
-  await prisma.chainLog.createMany({
-    data: logs,
-  });
-  await prisma.chainEvent.createMany({
-    data: events,
-  });
   console.log(`SaveBlock: blockNum=${blockNum} blockHash=${blockHash} finalized=${finalized}`);
+}
+
+async function checkSpecVersion(blockHash: CodecHash, specVersion: number) {
+  const chainVersion = await prisma.chainVersion.findFirst({ where: { specVersion }});
+  if (!chainVersion) {
+    const metadata = await api.rpc.state.getMetadata(blockHash);
+    const wrapMetadata = metadata.toHuman() as any;
+    const metadataObj = wrapMetadata.metadata[Object.keys(wrapMetadata.metadata)[0]]
+    await prisma.chainVersion.createMany({
+      data: {
+        specVersion,
+        modules: metadataObj.modules.map((v: any) => v.name).join("|"),
+        rawData: metadataObj,
+      },
+    });
+  }
 }
 
 
 main()
   .catch(e => {
-    throw e
+    throw e;
   })
   .finally(async () => {
-    await prisma.$disconnect()
+    await prisma.$disconnect();
   })
