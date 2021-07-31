@@ -95,23 +95,22 @@ async function saveBlock(header: Header, finalized: boolean) {
         }
       });
       events.push({
-        eventIndex: `${blockNum}-${recordIndex}`,
+        eventId: `${blockNum}-${recordIndex}`,
         blockNum,
         blockAt,
-        blockHash,
         extrinsicIdx: index,
         section,
         method,
+        eventIdx: recordIndex,
         data: eventData as any,
         extrinsicHash: ex.hash.toHex(),
       });
     });
 
     return {
-      extrinsicIndex: `${blockNum}-${index}`,
+      extrinsicId: `${blockNum}-${index}`,
       blockNum,
       blockAt,
-      blockHash,
       extrinsicLength: ex.length,
       versionInfo: ex.version,
       method,
@@ -144,8 +143,8 @@ async function saveBlock(header: Header, finalized: boolean) {
       parentHash: signedBlock.block.header.parentHash.toHex(),
       stateRoot: signedBlock.block.header.stateRoot.toHex(),
       extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
-      eventCount: records.length,
       extrinsicsCount: extrinsics.length,
+      eventCount: events.length,
       specVersion: runtimeVersion.specVersion.toNumber(),
       validator: extHeader?.author?.toString() || "",
       finalized,

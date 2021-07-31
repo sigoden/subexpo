@@ -25,27 +25,23 @@ model ChainBlock {
 }
 
 model ChainEvent {
-  eventIndex       String          @id
+  eventId       String          @id
   blockNum         Int             
   blockAt          Int
-  blockHash        String
   extrinsicIdx     Int
+  eventIdx         Int
   section          String
   method           String
   data             Json
   extrinsicHash    String
-  eventIdx         Int
   ChainBlock       ChainBlock?     @relation(fields: [blockNum], references: [blockNum])
   ChainExtrinsic   ChainExtrinsic? @relation(fields: [extrinsicHash], references: [extrinsicHash])
 }
 
 model ChainExtrinsic {
-  extrinsicIndex  String       @id
+  extrinsicId  String       @id
   blockNum        Int
   blockAt         Int
-  blockHash       String
-  extrinsicLength Int
-  versionInfo     Int
   method          String
   section         String
   args            Json
@@ -58,6 +54,8 @@ model ChainExtrinsic {
   success         Boolean
   fee             BigInt
   tip             BigInt
+  versionInfo     Int
+  extrinsicLength Int
   ChainBlock      ChainBlock?  @relation(fields: [blockNum], references: [blockNum])
 }
 
