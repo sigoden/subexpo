@@ -26,17 +26,20 @@ async function addFinalizedHead(header: Header) {
     const signedBlock = await api.rpc.chain.getBlock(header.hash);
     const extHeader = await api.derive.chain.getHeader(header.hash);
 
-    let blockTimestamp = new Date();
+    let blockAt = 0;
     const records = await api.query.system.events.at(signedBlock.block.header.hash);
+    const runtimeVersion = await api.rpc.state.getRuntimeVersion(header.hash);
     const paymentInfos = await Promise.all(signedBlock.block.extrinsics.map(async ex => {
-      if (ex.isSigned) return api.rpc.payment.queryInfo(ex.hash.toHex(), header.hash);
+      if (ex.isSigned) {
+        return api.rpc.payment.queryInfo(ex.toHex(), header.hash.toHex());
+      }
     }));
     const events: Prisma.ChainEventCreateInput[] = [];
     const extrinsics = signedBlock.block.extrinsics.map((ex, index) => {
       const { isSigned, method: { method, section } } = ex;
 
       if (section === "timestamp" && method === "set") {
-        blockTimestamp = new Date(parseInt(ex.args[0].toString()));
+        blockAt = Math.floor(parseInt(ex.args[0].toString()) / 1000);
       }
 
       let paymentInfo = paymentInfos[index];
@@ -78,7 +81,7 @@ async function addFinalizedHead(header: Header) {
       return {
         extrinsicIndex: `${blockNum}-${index}`,
         blockNum,
-        blockTimestamp,
+        blockAt,
         extrinsicLength: ex.length,
         versionInfo: ex.version,
         method,
@@ -106,7 +109,7 @@ async function addFinalizedHead(header: Header) {
     await prisma.chainBlock.create({
       data: {
         blockNum,
-        blockTimestamp,
+        blockAt,
         hash: signedBlock.hash.toHex(),
         parentHash: signedBlock.block.header.parentHash.toHex(),
         stateRoot: signedBlock.block.header.stateRoot.toHex(),
@@ -128,7 +131,7 @@ async function addFinalizedHead(header: Header) {
             data: events,
           }
         },
-        specVersion: 0,
+        specVersion: runtimeVersion.specVersion.toNumber(),
         validator: extHeader?.author?.toString() || "",
       },
     });

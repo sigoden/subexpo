@@ -10,7 +10,7 @@ generator client {
 model ChainBlock {
   id              Int              @id @default(autoincrement())
   blockNum        Int
-  blockTimestamp  DateTime
+  blockAt         Int
   hash            String
   parentHash      String
   stateRoot       String
@@ -43,7 +43,7 @@ model ChainExtrinsic {
   id              Int         @id @default(autoincrement())
   extrinsicIndex  String
   blockNum        Int
-  blockTimestamp  DateTime
+  blockAt         Int
   extrinsicLength Int
   versionInfo     Int
   method          String
