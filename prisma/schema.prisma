@@ -18,7 +18,7 @@ model ChainBlock {
   extrinsics      ChainExtrinsic[]
   extrinsicsCount Int
   events          ChainEvent[]
-  eventCount      Int
+  eventsCount     Int
   specVersion     Int
   validator       String
   finalized       Boolean          @default(false)

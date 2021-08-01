@@ -169,7 +169,7 @@ async function saveBlock(header: Header, finalized: boolean) {
         stateRoot: signedBlock.block.header.stateRoot.toHex(),
         extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
         extrinsicsCount: extrinsics.length,
-        eventCount: events.length,
+        eventsCount: events.length,
         specVersion: blockSpecVersion,
         validator: extHeader?.author?.toString() || "",
         finalized,
