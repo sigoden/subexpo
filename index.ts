@@ -59,7 +59,7 @@ async function saveBlock(header: Header, finalized: boolean) {
       console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
       return;
     } else {
-      await Promise.all([
+      prisma.$transaction([
         prisma.chainBlock.delete({ where: { blockNum }}),
         prisma.chainExtrinsic.deleteMany({ where: { blockNum }}),
         prisma.chainEvent.deleteMany({ where: { blockNum }}),
@@ -158,34 +158,38 @@ async function saveBlock(header: Header, finalized: boolean) {
       data: log.value.toHuman() as any,
     }
   });
-
-  await prisma.$transaction([
-    prisma.chainBlock.create({
-      data: {
-        blockNum,
-        blockAt,
-        blockHash,
-        parentHash: signedBlock.block.header.parentHash.toHex(),
-        stateRoot: signedBlock.block.header.stateRoot.toHex(),
-        extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
-        extrinsicsCount: extrinsics.length,
-        eventsCount: events.length,
-        specVersion: blockSpecVersion,
-        validator: extHeader?.author?.toString() || "",
-        finalized,
-      },
-    }),
-    prisma.chainExtrinsic.createMany({
-      data: extrinsics,
-    }),
-    prisma.chainLog.createMany({
-      data: logs,
-    }),
-    prisma.chainEvent.createMany({
-      data: events,
-    }),
-  ]);
-  console.log(`${isNew ? " CreateBlock "  : " UpdateBlock " }: ${blockNum} ${blockHash}`);
+  const block = {
+    blockNum,
+    blockAt,
+    blockHash,
+    parentHash: signedBlock.block.header.parentHash.toHex(),
+    stateRoot: signedBlock.block.header.stateRoot.toHex(),
+    extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
+    extrinsicsCount: extrinsics.length,
+    eventsCount: events.length,
+    specVersion: blockSpecVersion,
+    validator: extHeader?.author?.toString() || "",
+    finalized,
+  };
+  try {
+    await prisma.$transaction([
+      prisma.chainBlock.create({
+        data: block,
+      }),
+      prisma.chainExtrinsic.createMany({
+        data: extrinsics,
+      }),
+      prisma.chainLog.createMany({
+        data: logs,
+      }),
+      prisma.chainEvent.createMany({
+        data: events,
+      }),
+    ]);
+    console.log(`${isNew ? " CreateBlock "  : " UpdateBlock " }: ${blockNum} ${blockHash}`);
+  } catch (err) {
+    console.log(` CreateBlock :${blockNum}, ${JSON.stringify({block, extrinsics, logs, events })}`);
+  }
 }
 
 async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
