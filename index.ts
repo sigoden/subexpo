@@ -22,6 +22,7 @@ async function startChain() {
   });
   let isSyncing = true;
   await api.isReady
+  await saveMissBlocks();
   while (isSyncing) {
     isSyncing = await syncChain();
   }
@@ -31,21 +32,53 @@ async function syncChain() {
   const finalizedBlockHash = await api.rpc.chain.getFinalizedHead();
   const finalizedBlockHeader =  await api.rpc.chain.getHeader(finalizedBlockHash);
   const finalizedBlockNum = finalizedBlockHeader.number.toNumber();
-  const chainBlock = await prisma.chainBlock.findFirst({ where: { finalized: true }, orderBy: { blockNum: "desc" }});
-  const saveBlockNum = chainBlock?.blockNum || 0;
-  const isSyncing = finalizedBlockNum - saveBlockNum > 1;
+  const lastBlockNum = await getLastBlockNum();
+  const isSyncing = finalizedBlockNum - lastBlockNum > 1;
   if (!isSyncing) listenChain();
-  for (let blockNum = saveBlockNum + 1; blockNum < finalizedBlockNum; blockNum++) {
-    const blockHash = await api.rpc.chain.getBlockHash(blockNum);
-    const header = await api.rpc.chain.getHeader(blockHash);
-    await saveBlock(header, true);
+  for (let blockNum = lastBlockNum + 1; blockNum < finalizedBlockNum; blockNum++) {
+    await saveBlockNum(blockNum);
   }
   return isSyncing;
+}
+
+async function saveMissBlocks() {
+  const lastBlockNum = await getLastBlockNum();
+  if (lastBlockNum === 0) return; 
+  let page = lastBlockNum / 1000 
+  if (lastBlockNum % 1000 > 0) page += 1;
+  const blockNums = new Set();
+  for (let i = 0; i < page; i++) {
+    const blocks = await prisma.chainBlock.findMany({
+      where: { blockNum: { "gte": 1000 * i, "lt": 1000 * (i+1) } },
+      select: { blockNum: true },
+      orderBy: { blockNum: "asc" },
+      take: 1000,
+    });
+    blocks.forEach(block => {
+      blockNums.add(block.blockNum);
+    })
+  }
+  for (let i = 1; i <= lastBlockNum; i++) {
+    if (!blockNums.has(i)) {
+      await saveBlockNum(i);
+    }
+  }
 }
 
 async function listenChain() {
   await api.rpc.chain.subscribeFinalizedHeads(header => saveBlock(header, true));
   await api.rpc.chain.subscribeNewHeads(header => saveBlock(header, false));
+}
+
+async function getLastBlockNum() {
+  const chainBlock = await prisma.chainBlock.findFirst({ where: { finalized: true }, orderBy: { blockNum: "desc" }});
+  return chainBlock?.blockNum || 0;
+}
+
+async function saveBlockNum(blockNum: number) {
+  const blockHash = await api.rpc.chain.getBlockHash(blockNum);
+  const header = await api.rpc.chain.getHeader(blockHash);
+  await saveBlock(header, true);
 }
 
 async function saveBlock(header: Header, finalized: boolean) {
@@ -55,8 +88,10 @@ async function saveBlock(header: Header, finalized: boolean) {
   let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum }});
   if (chainBlock) {
     if (chainBlock.blockHash === blockHash ) {
-      await prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }});
-      console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
+      if (finalized) {
+        await prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }});
+        console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
+      }
       return;
     } else {
       prisma.$transaction([
@@ -188,7 +223,10 @@ async function saveBlock(header: Header, finalized: boolean) {
     ]);
     console.log(`${isNew ? " CreateBlock "  : " UpdateBlock " }: ${blockNum} ${blockHash}`);
   } catch (err) {
-    console.log(` CreateBlock :${blockNum}, ${JSON.stringify({block, extrinsics, logs, events })}`);
+    if (/UniqueConstraintViolation/.test(err.message)) {
+    } else {
+      console.log(` CreateBlock : ${blockNum}, ${err.message}`);
+    }
   }
 }
 
