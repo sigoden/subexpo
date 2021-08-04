@@ -1,7 +1,7 @@
 version: '3'
 services:
   mysql: 
-    image: mysql:5.7 
+    image: mysql:8
     container_name: mysql
     environment: 
       - MYSQL_ROOT_PASSWORD=pass 
@@ -10,4 +10,3 @@ services:
       - 3306:3306 
     volumes: 
       - ./tmp/docker/mysql:/var/lib/mysql 
-      - ./prisma/mysql.cnf:/etc/mysql/mysql.conf.d/custom.cnf
