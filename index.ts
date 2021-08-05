@@ -2,12 +2,15 @@ import { PrismaClient, ChainEvent } from '@prisma/client'
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { CodecHash } from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
+import { MaxPriorityQueue } from '@datastructures-js/priority-queue'
 const types = require("./types");
 
 const prisma = new PrismaClient()
+const queue = new MaxPriorityQueue<Header>();
 
 let api: ApiPromise;
 let chainSpecVersions = new Set();
+let syncBlockNum = 0;
 
 async function main() {
   await startChain();
@@ -22,27 +25,28 @@ async function startChain() {
   });
   let isSyncing = true;
   await api.isReady
-  await saveMissBlocks();
+  runQueue();
   while (isSyncing) {
+    await fixMissBlocks();
     isSyncing = await syncChain();
   }
+  listenChain();
 }
 
 async function syncChain() {
-  const finalizedBlockHash = await api.rpc.chain.getFinalizedHead();
-  const finalizedBlockHeader =  await api.rpc.chain.getHeader(finalizedBlockHash);
-  const finalizedBlockNum = finalizedBlockHeader.number.toNumber();
-  const lastBlockNum = await getLastBlockNum();
+  const finalizedBlockNum = await getFinalizedBlockNum();
+  const lastBlockNum = await getSavedBlockNum();
   const isSyncing = finalizedBlockNum - lastBlockNum > 1;
-  if (!isSyncing) listenChain();
   for (let blockNum = lastBlockNum + 1; blockNum < finalizedBlockNum; blockNum++) {
-    await saveBlockNum(blockNum);
+    const header = await getBlockHeader(blockNum);
+    await saveBlock(header, true);
+    syncBlockNum = blockNum;
   }
   return isSyncing;
 }
 
-async function saveMissBlocks() {
-  const lastBlockNum = await getLastBlockNum();
+async function fixMissBlocks() {
+  const lastBlockNum = await getSavedBlockNum();
   if (lastBlockNum === 0) return; 
   let page = lastBlockNum / 1000 
   if (lastBlockNum % 1000 > 0) page += 1;
@@ -60,25 +64,51 @@ async function saveMissBlocks() {
   }
   for (let i = 1; i <= lastBlockNum; i++) {
     if (!blockNums.has(i)) {
-      await saveBlockNum(i);
+      const header = await getBlockHeader(i);
+      await saveBlock(header, true);
     }
   }
 }
 
+async function runQueue() {
+  while (true) {
+    if (queue.isEmpty()) {
+      await sleep(1000);
+      continue;
+    }
+    const { element: header } = queue.dequeue();
+    const blockNum = header.number.toNumber();
+    for (let i = syncBlockNum; i < blockNum - 1; i++) {
+      const header = await getBlockHeader(i);
+      await saveBlock(header, true);
+    }
+    await saveBlock(header, true);
+    syncBlockNum = blockNum;
+  }
+}
+
 async function listenChain() {
-  await api.rpc.chain.subscribeFinalizedHeads(header => saveBlock(header, true));
+  await api.rpc.chain.subscribeFinalizedHeads(header => {
+    queue.enqueue(header, header.number.toNumber())
+  });
   await api.rpc.chain.subscribeNewHeads(header => saveBlock(header, false));
 }
 
-async function getLastBlockNum() {
+async function getFinalizedBlockNum() {
+  const finalizedBlockHash = await api.rpc.chain.getFinalizedHead();
+  const finalizedBlockHeader =  await api.rpc.chain.getHeader(finalizedBlockHash);
+  return finalizedBlockHeader.number.toNumber();
+}
+
+async function getSavedBlockNum() {
   const chainBlock = await prisma.chainBlock.findFirst({ where: { finalized: true }, orderBy: { blockNum: "desc" }});
   return chainBlock?.blockNum || 0;
 }
 
-async function saveBlockNum(blockNum: number) {
+async function getBlockHeader(blockNum: number) {
   const blockHash = await api.rpc.chain.getBlockHash(blockNum);
   const header = await api.rpc.chain.getHeader(blockHash);
-  await saveBlock(header, true);
+  return header;
 }
 
 async function saveBlock(header: Header, finalized: boolean) {
@@ -88,7 +118,7 @@ async function saveBlock(header: Header, finalized: boolean) {
   let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum }});
   if (chainBlock) {
     if (chainBlock.blockHash === blockHash ) {
-      if (finalized) {
+      if (finalized && !chainBlock.finalized) {
         await prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }});
         console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
       }
@@ -147,6 +177,9 @@ async function saveBlock(header: Header, finalized: boolean) {
       }
       
       const { data, section, meta, method } = record.event;
+      if (section === "system" && method === "ExtrinsicSuccess") {
+        return;
+      }
       const eventData = data.map((arg, index) => {
         return {
           type: meta.args[index].toString(),
@@ -231,19 +264,75 @@ async function saveBlock(header: Header, finalized: boolean) {
 }
 
 async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
-  const chainVersion = await prisma.chainVersion.findFirst({ where: { specVersion }});
-  if (chainVersion) return;
+  const exist = await prisma.chainVersion.count({ where: { specVersion } });
+  if (exist) return;
+  const latestChainVersion = await prisma.chainVersion.findFirst({ select: { mergedModules: true }, orderBy: { specVersion: "desc" }});
   const metadata = await api.rpc.state.getMetadata(blockHash);
   const wrapMetadata = metadata.toHuman() as any;
   const metadataObj = wrapMetadata.metadata[Object.keys(wrapMetadata.metadata)[0]]
-  await prisma.chainVersion.createMany({
+  const modules = getChainModules(metadataObj) as any;
+  const mergedModules = latestChainVersion ? mergeChainModule(latestChainVersion.mergedModules as any, modules) : modules;
+  await prisma.chainVersion.create({
     data: {
       specVersion,
-      modules: metadataObj.modules.map((v: any) => v.name).join("|"),
+      modules,
+      mergedModules,
       rawData: metadataObj,
     },
   });
   chainSpecVersions.add(specVersion);
+}
+
+interface ChainModule {
+  name: string;
+  calls: string[],
+  errors: string[],
+  events: string[],
+}
+
+function getChainModules(metadataObj: any): ChainModule[] {
+  let mods = [];
+  for (const mod of metadataObj.modules) {
+    mods.push({
+      name: mod.name,
+      calls: mod?.calls?.map((v: any) => v.name) || [],
+      errors: mod?.errors?.map((v: any) => v.name) || [],
+      events: mod?.events?.map((v: any) => v.name) || [],
+    });
+  }
+  return mods;
+}
+
+function mergeChainModule(mergeMods: ChainModule[], mods: ChainModule[]): ChainModule[] {
+  const names = mergeArr(mergeMods.map(v => v.name), mods.map(v => v.name));
+  const output: ChainModule[] = [];
+  for (const name of names) {
+    const mod1 = mergeMods.find(v => v.name === name);
+    const mod2 = mods.find(v => v.name === name);
+    if (mod1 && mod2) {
+      output.push({
+        name,
+        calls: mergeArr(mod1.calls, mod2.calls),
+        errors: mergeArr(mod1.errors, mod2.errors),
+        events: mergeArr(mod1.events, mod2.events),
+      })
+    } else if (mod1) {
+      output.push(mod1);
+    } else if (mod2) {
+      output.push(mod2);
+    }
+  }
+  return output;
+}
+
+function mergeArr(array1: string[], array2: string[]) {
+  return Array.from(new Set([...array1, ...array2]));
+}
+
+async function sleep(ms: number) {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
 }
 
 main().catch(err => console.error(err));

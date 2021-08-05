@@ -69,7 +69,8 @@ model ChainLog {
 }
 
 model ChainVersion {
-  specVersion Int    @id
-  modules     String @db.Text
-  rawData     Json
+  specVersion   Int  @id
+  modules       Json
+  mergedModules Json
+  rawData       Json
 }

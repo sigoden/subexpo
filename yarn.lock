@@ -9,6 +9,18 @@
   dependencies:
     regenerator-runtime "^0.13.4"
 
+"@datastructures-js/heap@^3.1.0":
+  version "3.1.1"
+  resolved "https://registry.yarnpkg.com/@datastructures-js/heap/-/heap-3.1.1.tgz#34ec812a4964a7bf6a1726174234cd70bf5d6ea3"
+  integrity sha512-YwaiiusllkurZnMsYSB9WYKz9OhCY0siD/2RPRYtPQnH/BxHaV/YEprHcnfGUuowTVsByFGltqurc54C9+k03A==
+
+"@datastructures-js/priority-queue@^5.1.1":
+  version "5.1.1"
+  resolved "https://registry.yarnpkg.com/@datastructures-js/priority-queue/-/priority-queue-5.1.1.tgz#00e64071d54821c0c163f89e3cbf7ff48d59b4ef"
+  integrity sha512-uMYmh+dNalf+FMQ2RbL6Y0rZkEykVMpGBZRa9feawuNN5XEc3QbBfkB6ampb1MqQZzbnfvawDfxSL9Y9SuKF1w==
+  dependencies:
+    "@datastructures-js/heap" "^3.1.0"
+
 "@polkadot/api-derive@5.2.1":
   version "5.2.1"
   resolved "https://registry.yarnpkg.com/@polkadot/api-derive/-/api-derive-5.2.1.tgz#40c2bf1af88a5ad0582209a5208456fb880e91ff"

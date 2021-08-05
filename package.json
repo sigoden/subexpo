@@ -5,6 +5,7 @@
     "dev": "ts-node ./index.ts"
   },
   "dependencies": {
+    "@datastructures-js/priority-queue": "^5.1.1",
     "@polkadot/api": "^5.2.1",
     "@prisma/client": "2.28.0"
   },
