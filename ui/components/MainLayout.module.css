@@ -1,0 +1,33 @@
+.header {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.logo {
+  font-size: 1.2rem;
+  text-align: center;
+  width: 120px;
+}
+
+.logo a {
+  color: white;
+}
+
+.logoText {
+  color: white;
+}
+
+.wrapContent {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem
+}
+
+.wrapSearch {
+  margin: 2.5rem auto 1.5rem;
+}
+
+.search {
+  padding: 0;
+}
