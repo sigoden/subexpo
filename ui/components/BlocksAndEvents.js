@@ -1,9 +1,11 @@
-import React from "react";
-import { Row, Col, Button } from "antd";
-import { CheckCircleOutlined } from "@ant-design/icons";
+import React, { useEffect, useState } from "react";
+import { Row, Col, Button, Spin } from "antd";
+import { useRequest } from "@umijs/hooks";
+import { CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import Link from "next/link";
 
 import styles from "./BlocksAndEvents.module.css";
+import { formatNum, formatNumIdx, formatTimeAgo } from "../lib/utils";
 
 const blocks = Array.from(Array(10)).map((_, index) => {
   return {
@@ -23,44 +25,57 @@ const events = Array.from(Array(5)).map((_, index) => {
 });
 
 
-function Block(props) {
+function Block({ blockNum, eventsCount, exterinsicsCount, blockAt, finalized }) {
   return (
     <Row className={styles.block}>
       <Col>
         <Row className={styles.blockNum}>
           <div className={styles.blockNumTitle}>Block#</div>
-          <div className={styles.blockNumValue}>6,244,376</div>
+          <div className={styles.blockNumValue}>{formatNum(blockNum)}</div>
         </Row>
         <Row className={styles.blockStats}>
           <div className={styles.blockStatsText}>Includes</div>
           <div className={styles.blockStatsList}>
-            <div>2 Extrinsic</div>
-            <div>2 Event</div>
+            <div>{exterinsicsCount} Extrinsic</div>
+            <div>{eventsCount} Event</div>
           </div>
         </Row>
       </Col>
       <Col className={styles.blockStateBox}>
-        <Col>10 sec ago</Col>
-        <Col className={styles.blockFinialized}><CheckCircleOutlined /></Col>
+        <Col>{formatTimeAgo(blockAt * 1000)}</Col>
+        <Col className={styles.blockFinialized}>
+          {finalized ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
+        </Col>
       </Col>
     </Row>
   );
 }
 
-function Event(props) {
+function Event({ section, method, eventId }) {
   return (
     <Row className={styles.event}>
       <Col>
-        session.NewSession
+        {section + "." + method}
       </Col>
       <Col className={styles.eventId}>
-        39,920-2
+        {formatNumIdx(eventId)}
       </Col>
     </Row>
   );
 } 
 
 export default function BlocksAndEvents() {
+  const [state, setState] = useState({blocks:[], events: []});
+  const { data } = useRequest(
+    { url: "/api/pollinfo" },
+    {
+      pollingInterval: 2000,
+      pollingWhenHidden: false,
+    }
+  );
+  useEffect(() => {
+    if (Array.isArray(data?.blocks)) setState(data);
+  }, [data]);
   return (
     <Row>
       <Col span={12} className={styles.panel}>
@@ -75,8 +90,8 @@ export default function BlocksAndEvents() {
           </Col>
         </Row>
         <Row style={{flexDirection: "column"}} className={styles.panelBody}>
-          {Array.from(Array(10)).map((_, index) => (
-            <Block key={index} />
+          {state.blocks.map(block => (
+            <Block key={block.blockNum} {...block} />
           ))}
         </Row>
       </Col>
@@ -92,8 +107,8 @@ export default function BlocksAndEvents() {
           </Col>
         </Row>
         <Row style={{flexDirection: "column"}} className={styles.panelBody}>
-          {Array.from(Array(20)).map((_, index) => (
-            <Event key={index} />
+          {state.events.map(event => (
+            <Event key={event.eventId} {...event} />
           ))}
         </Row>
       </Col>

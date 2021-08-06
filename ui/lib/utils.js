@@ -28,3 +28,12 @@ export function ecllipseHash(hash) {
   if (hash <= 16) return hash;
   return hash.slice(0, 7) + "...." + hash.slice(-5);
 }
+
+export function formatNum(num) {
+  return num.toString().replace(/(\d)(?=(?:\d{3})+$)/g,'$1,');
+}
+
+export function formatNumIdx(numIdx) {
+  const [num, idx] = numIdx.split("-");
+  return formatNum(num) + "-" + idx;
+}

@@ -7,11 +7,6 @@ import styles from "./SearchForm.module.css";
 
 const { RangePicker } = DatePicker;
 
-async function getSearchData() {
-  return fetch(`/api/searchdata`)
-    .then((res) => res.json())
-}
-
 function getModules(modules, type) {
   if (!Array.isArray(modules)) return [];
   return modules.map(mod => {
@@ -38,9 +33,10 @@ function getModules(modules, type) {
 export default function SearchForm({
   form, submit, reset, kind,
 }) {
-  const { data } = useRequest(getSearchData, {
-    cacheKey: "searchdata",
-  });
+  const { data } = useRequest(
+    { url: "/api/state" }, 
+    { cacheKey: "state" }
+  );
   const modules = useMemo(() => getModules(data?.modules, kind), [data, kind]);
   const disableDate = useCallback((date) => {
     if (!data?.firstBlockAt) return false;

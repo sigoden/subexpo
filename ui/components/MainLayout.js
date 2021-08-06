@@ -1,8 +1,8 @@
 import React from "react";
-import { Layout, Row, Col, Input, Menu } from "antd";
+import { Layout, Row, Col, Menu } from "antd";
 const { Header, Content } = Layout;
-const { Search } = Input;
 import Link from "next/link";
+import SearchBar from "./SearchBar";
 import styles from "./MainLayout.module.css";
 
 const navs = [
@@ -12,8 +12,7 @@ const navs = [
   ["Accounts", "/accounts"],
 ];
 
-const onSearch = v => console.log(v);
-export default function MainLayout({ children }) {
+export default function MainLayout({ children, noSearch }) {
   return (
     <Layout>
       <Header>
@@ -37,15 +36,7 @@ export default function MainLayout({ children }) {
         </Row>
       </Header>
       <Content className={styles.wrapContent}>
-        <div className={styles.wrapSearch}>
-          <Search
-            className={styles.search}
-            placeholder="Search by Block / Extrinsic / Account"
-            enterButton="Search"
-            size="large"
-            onSearch={onSearch}
-          />
-        </div>
+        { noSearch ? <div /> : <SearchBar /> }
         {children}
       </Content>
     </Layout>
