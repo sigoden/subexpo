@@ -1,8 +1,10 @@
 import { Table } from "antd";
 import Link from "next/link";
-import { CheckCircleOutlined, CloseCircleOutlined, MinusSquareOutlined, PlusSquareOutlined } from "@ant-design/icons";
-import { ecllipseHash, formatTimeAgo } from "../lib/utils";
+import { ecllipseHash } from "../lib/utils";
+import TimeAgo from "./TimeAgo";
 import Args from "./Args";
+import ExtrinsicResult from "./ExtrinsicResult";
+import ExpandIcon from "./ExpandIcon";
 
 const columns = [
   {
@@ -23,12 +25,12 @@ const columns = [
   {
     title: "Time",
     dataIndex: "blockAt",
-    render: blockAt => formatTimeAgo(blockAt * 1000),
+    render: blockAt => <TimeAgo time={blockAt} />,
   },
   {
     title: "Result",
     dataIndex: 'success',
-    render: success => success ? <CheckCircleOutlined /> : <CloseCircleOutlined />,
+    render: success => <ExtrinsicResult success={success} />,
   },
   {
     title: "Action",
@@ -49,13 +51,7 @@ export default function ExtrinsicTable (props) {
         columns}
       rowKey="extrinsicId" 
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
-      expandIcon={({ expanded, onExpand, record }) =>
-        expanded ? (
-          <MinusSquareOutlined onClick={e => onExpand(record, e)} />
-        ) : (
-          <PlusSquareOutlined onClick={e => onExpand(record, e)} />
-        )
-      }
+      expandIcon={ExpandIcon}
       expandable={{
         expandedRowRender: record => <Args args={record.args} />
       }}
@@ -63,3 +59,4 @@ export default function ExtrinsicTable (props) {
     />
   )
 }
+      

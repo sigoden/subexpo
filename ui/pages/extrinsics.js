@@ -1,11 +1,10 @@
-import { Table, Form } from "antd";
+import { Form } from "antd";
 import { useFormTable } from "@umijs/hooks";
 import MainLayout from "../components/MainLayout";
 import SearchForm from "../components/SearchForm";
 import ExtrinsicTable from "../components/ExtrinsicTable";
 
 async function listExtrinsics(paginatedParams, queryForm) {
-
   let qs = `current=${paginatedParams.current}&pageSize=${paginatedParams.pageSize}`;
   if (queryForm.module?.length) {
     qs += `&section=${queryForm.module[0]}`;

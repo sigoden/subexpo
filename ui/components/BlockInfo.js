@@ -1,9 +1,12 @@
 import { Col, Row } from "antd";
 import Link from "next/link";
-import { CopyOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
-import { formatTimeAgo, formatTimeUtc } from "../lib/utils";
+import TimeAgo from "./TimeAgo";
+import { formatTimeUtc } from "../lib/utils";
+import FinalizedStatus from "./FinializeStatus";
+import CopyClipboard from "./CopyClipboard";
 
 import styles from "./BlockInfo.module.css";
+
 
 export default function BlockInfo({ block }) {
   return (
@@ -17,15 +20,13 @@ export default function BlockInfo({ block }) {
       <Row className={styles.item}>
         <Col className={styles.itemLabel} md={6}>Status</Col>
         <Col className={styles.itemValue}>
-          {block.finalized ? 
-            <span><CheckCircleOutlined /> Finalized</span> :
-            <span><ClockCircleOutlined /> Unfinalized</span>}
+          <FinalizedStatus text finalized={block.finalized} />
         </Col>
       </Row>
       <Row className={styles.item}>
         <Col className={styles.itemLabel} md={6}>Hash</Col>
         <Col className={styles.itemValue}>
-          {block.blockHash} <CopyOutlined />
+          {block.blockHash} <CopyClipboard text={block.blockHash} />
         </Col>
       </Row>
       <Row className={styles.item}>
@@ -49,13 +50,13 @@ export default function BlockInfo({ block }) {
       <Row className={styles.item}>
         <Col className={styles.itemLabel} md={6}>Validator</Col>
         <Col className={styles.itemValue}>
-          {block.validator} <CopyOutlined />
+          {block.validator} <CopyClipboard text={block.validator} />
         </Col>
       </Row>
       <Row className={styles.item}>
         <Col className={styles.itemLabel} md={6}>Block Time</Col>
         <Col className={styles.itemValue}>
-          {formatTimeAgo(block.blockAt * 1000)}
+          <TimeAgo time={block.blockAt} />
         </Col>
       </Row>
       <Row className={styles.item}>

@@ -1,13 +1,13 @@
 import { Col, Row } from "antd";
-import Link from "next/link";
-import { CopyOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { formatTimeUtc } from "../lib/utils";
 import Args from "./Args";
 
 import styles from "./ExtrinsicInfo.module.css";
+import FinalizedStatus from "./FinializeStatus";
+import ExtrinsicResult from "./ExtrinsicResult";
+import CopyClipboard from "./CopyClipboard";
 
 export default function ExtrinsicInfo({ block, extrinsic }) {
-
   return (
     <div className={styles.container}>
       <Row className={styles.item}>
@@ -20,9 +20,7 @@ export default function ExtrinsicInfo({ block, extrinsic }) {
         <Col className={styles.itemLabel} md={6}>Block</Col>
         <Col className={styles.itemValue}>
           <span>
-            {block.finalized ? 
-              <CheckCircleOutlined /> :
-              <ClockCircleOutlined />}
+            <FinalizedStatus finalized={block.finalized} />
             {extrinsic.blockNum}
           </span>
         </Col>
@@ -30,7 +28,7 @@ export default function ExtrinsicInfo({ block, extrinsic }) {
       <Row className={styles.item}>
         <Col className={styles.itemLabel} md={6}>Extrinsic Hash</Col>
         <Col className={styles.itemValue}>
-          {extrinsic.extrinsicHash} <CopyOutlined />
+          {extrinsic.extrinsicHash} <CopyClipboard text={extrinsic.extrinsicHash} />
         </Col>
       </Row>
       <Row className={styles.item}>
@@ -60,6 +58,12 @@ export default function ExtrinsicInfo({ block, extrinsic }) {
       {extrinsic.isSigned && (
         <>
           <Row className={styles.item}>
+            <Col className={styles.itemLabel} md={6}>Sender</Col>
+            <Col className={styles.itemValue}>
+              {extrinsic.accountId} <CopyClipboard text={extrinsic.accountId} />
+            </Col>
+          </Row>
+          <Row className={styles.item}>
             <Col className={styles.itemLabel} md={6}>Fee</Col>
             <Col className={styles.itemValue}>
               {extrinsic.fee}
@@ -74,9 +78,7 @@ export default function ExtrinsicInfo({ block, extrinsic }) {
           <Row className={styles.item}>
             <Col className={styles.itemLabel} md={6}>Result</Col>
             <Col className={styles.itemValue}>
-              {block.success ? 
-                <span><CheckCircleOutlined /> Success</span> :
-                <span><ClockCircleOutlined /> Failed</span>}
+              <ExtrinsicResult success={block.success} text />
             </Col>
           </Row>
           <Row className={styles.item}>

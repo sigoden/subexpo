@@ -1,9 +1,10 @@
 import { Table } from "antd";
 import Link from "next/link";
 import { useRequest } from "@umijs/hooks";
-import { CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
-import { ecllipseHash, formatTimeAgo } from "../lib/utils";
+import { ecllipseHash } from "../lib/utils";
+import TimeAgo from "../components/TimeAgo";
 import MainLayout from "../components/MainLayout";
+import FinalizedStatus from "../components/FinializeStatus";
 
 async function listExtrinsics(paginatedParams) {
   return fetch(`/api/blocks?current=${paginatedParams.current}&pageSize=${paginatedParams.pageSize}`)
@@ -19,12 +20,12 @@ const columns = [
   {
     title: "Status",
     dataIndex: "finalized",
-    render: finalized => finalized ? <CheckCircleOutlined /> : <ClockCircleOutlined />
+    render: finalized => <FinalizedStatus finalized={finalized} />,
   },
   {
     title: "Time",
     dataIndex: "blockAt",
-    render: blockAt => formatTimeAgo(blockAt * 1000),
+    render: blockAt => <TimeAgo time={blockAt} />
   },
   {
     title: "Extrinsics",

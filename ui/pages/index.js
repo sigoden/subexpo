@@ -1,9 +1,15 @@
 import BlocksAndEvents from "../components/BlocksAndEvents";
 import MainLayout from "../components/MainLayout";
+import { getLatestBLocksAndEvents } from "../lib/prisma";
 
-export default function IndexPage() {
+export async function getServerSideProps() {
+  const { blocks, events } = await getLatestBLocksAndEvents();
+  return { props: { blocks, events }};
+}
+
+export default function IndexPage(props) {
   return (
-    <BlocksAndEvents />
+    <BlocksAndEvents {...props} />
   );
 }
 

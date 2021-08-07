@@ -1,6 +1,6 @@
 import { Table } from "antd";
-import { MinusSquareOutlined, PlusSquareOutlined } from "@ant-design/icons";
 import Args from "./Args";
+import ExpandIcon from "./ExpandIcon";
 
 const columns = [
   {
@@ -20,13 +20,7 @@ export default function EventTable(props) {
       columns={columns}
       rowKey="logId"
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
-      expandIcon={({ expanded, onExpand, record }) =>
-        expanded ? (
-          <MinusSquareOutlined onClick={e => onExpand(record, e)} />
-        ) : (
-          <PlusSquareOutlined onClick={e => onExpand(record, e)} />
-        )
-      }
+      expandIcon={ExpandIcon}
       expandable={{
         expandedRowRender: record => <Args args={
           record.data.map((item, index) => ({ name: index + 1, value: item }))

@@ -1,8 +1,8 @@
 import { Table } from "antd";
 import Link from "next/link";
-import { MinusSquareOutlined, PlusSquareOutlined } from "@ant-design/icons";
-import { formatTimeAgo } from "../lib/utils";
+import TimeAgo from "./TimeAgo";
 import Args from "./Args";
+import ExpandIcon from "./ExpandIcon";
 
 const columns = [
   {
@@ -23,7 +23,7 @@ const columns = [
   {
     title: "Time",
     dataIndex: "blockAt",
-    render: blockAt => formatTimeAgo(blockAt * 1000),
+    render: blockAt => <TimeAgo time={blockAt} />,
   },
   {
     title: "Action",
@@ -50,13 +50,7 @@ export default function EventTable(props) {
       columns={filterdColumns}
       rowKey="eventId"
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
-      expandIcon={({ expanded, onExpand, record }) =>
-        expanded ? (
-          <MinusSquareOutlined onClick={e => onExpand(record, e)} />
-        ) : (
-          <PlusSquareOutlined onClick={e => onExpand(record, e)} />
-        )
-      }
+      expandIcon={ExpandIcon}
       expandable={{
         expandedRowRender: record => <Args args={record.data} />
       }}

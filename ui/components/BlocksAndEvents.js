@@ -1,29 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Row, Col, Button, Spin } from "antd";
 import { useRequest } from "@umijs/hooks";
-import { CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import Link from "next/link";
-
+import { formatNum, formatNumIdx } from "../lib/utils";
+import TimeAgo from "./TimeAgo";
+import FinalizedStatus from "./FinializeStatus";
 import styles from "./BlocksAndEvents.module.css";
-import { formatNum, formatNumIdx, formatTimeAgo } from "../lib/utils";
-
-const blocks = Array.from(Array(10)).map((_, index) => {
-  return {
-    blockNum: 62324 - index,
-    eventsCount: 3,
-    exterinsicsCount: 2,
-    blockAt: Math.floor(Date.now() / 1000) - 6000 * index,
-  };
-});
-
-const events = Array.from(Array(5)).map((_, index) => {
-  return {
-    eventId: (62324 - index) + "-" + 1,
-    section: "session",
-    method: "NewSession",
-  };
-});
-
 
 function Block({ blockNum, eventsCount, extrinsicsCount, blockAt, finalized }) {
   return (
@@ -49,9 +31,9 @@ function Block({ blockNum, eventsCount, extrinsicsCount, blockAt, finalized }) {
         </Row>
       </Col>
       <Col className={styles.blockStateBox}>
-        <Col>{formatTimeAgo(blockAt * 1000)}</Col>
+        <Col><TimeAgo time={blockAt} /></Col>
         <Col className={styles.blockFinialized}>
-          {finalized ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
+          <FinalizedStatus finalized={finalized} />
         </Col>
       </Col>
     </Row>
@@ -73,8 +55,8 @@ function Event({ section, method, eventId, extrinsicId }) {
   );
 } 
 
-export default function BlocksAndEvents() {
-  const [state, setState] = useState({blocks:[], events: []});
+export default function BlocksAndEvents({ blocks, events }) {
+  const [state, setState] = useState({blocks, events});
   const { data } = useRequest(
     { url: "/api/pollinfo" },
     {

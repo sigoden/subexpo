@@ -38,7 +38,7 @@ export default function SearchForm({
   const modules = useMemo(() => getModules(data?.modules, kind), [data, kind]);
   const disableDate = useCallback((date) => {
     if (!data?.firstBlockAt) return false;
-    return date < moment(data.firstBlockAt * 1000).startOf("day") || date > moment(data.lastBlockAt * 1000).endOf("day")
+    return date < moment(data.firstBlockAt * 1000).startOf("day") || date > moment().endOf("day")
   }, [data]);
   return (
     <div className={styles.root}>

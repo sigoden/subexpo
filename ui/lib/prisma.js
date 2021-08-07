@@ -20,3 +20,35 @@ if (process.env.NODE_ENV === 'production') {
   prisma = global.prisma
 }
 export default prisma;
+
+export async function getLatestBLocksAndEvents() {
+  const [blocks, events] = await Promise.all([
+    prisma.chainBlock.findMany({
+      orderBy: {
+        blockNum: "desc",
+      },
+      select: {
+        blockNum: true,
+        blockAt: true,
+        eventsCount: true,
+        extrinsicsCount: true,
+        finalized: true,
+      },
+      take: 10,
+    }),
+    prisma.chainEvent.findMany({
+      orderBy: {
+        blockNum: "desc",
+      },
+      select: {
+        eventId: true,
+        extrinsicId: true,
+        blockNum: true,
+        section: true,
+        method: true,
+      },
+      take: 20,
+    })
+  ]);
+  return { blocks, events };
+}
