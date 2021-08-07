@@ -2,6 +2,7 @@ import { Col, Row } from "antd";
 import Link from "next/link";
 import { CopyOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { formatTimeUtc } from "../lib/utils";
+import Args from "./Args";
 
 import styles from "./ExtrinsicInfo.module.css";
 
@@ -44,14 +45,20 @@ export default function ExtrinsicInfo({ block, extrinsic }) {
           {extrinsic.method}
         </Col>
       </Row>
+      <Row className={styles.item}>
+        <Col className={styles.itemLabel} md={6}>Call</Col>
+        <Col className={styles.itemValue}>
+          {extrinsic.method}
+        </Col>
+      </Row>
+      <Row className={styles.item}>
+        <Col className={styles.itemLabel} md={6}>Parameters</Col>
+        <Col className={styles.itemValue}>
+          <Args args={extrinsic.args}/>
+        </Col>
+      </Row>
       {extrinsic.isSigned && (
         <>
-          <Row className={styles.item}>
-            <Col className={styles.itemLabel} md={6}>Sender</Col>
-            <Col className={styles.itemValue}>
-              {extrinsic.accountId} <CopyOutlined />
-            </Col>
-          </Row>
           <Row className={styles.item}>
             <Col className={styles.itemLabel} md={6}>Fee</Col>
             <Col className={styles.itemValue}>

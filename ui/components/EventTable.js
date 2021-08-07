@@ -1,12 +1,14 @@
 import { Table } from "antd";
 import Link from "next/link";
+import { MinusSquareOutlined, PlusSquareOutlined } from "@ant-design/icons";
 import { formatTimeAgo } from "../lib/utils";
+import Args from "./Args";
 
 const columns = [
   {
     title: "ID",
     dataIndex: "eventId",
-    render: (eventId) => <Link href={`/events/${eventId}`}><a>{eventId}</a></Link>
+    render: (eventId, record) => <Link href={`/extrinsics/${record.extrinsicId}`}><a>{eventId}</a></Link>
   },
   {
     title: "Block",
@@ -47,6 +49,17 @@ export default function EventTable(props) {
     <Table
       columns={filterdColumns}
       rowKey="eventId"
+      expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
+      expandIcon={({ expanded, onExpand, record }) =>
+        expanded ? (
+          <MinusSquareOutlined onClick={e => onExpand(record, e)} />
+        ) : (
+          <PlusSquareOutlined onClick={e => onExpand(record, e)} />
+        )
+      }
+      expandable={{
+        expandedRowRender: record => <Args args={record.data} />
+      }}
       {...props} 
     />
   );

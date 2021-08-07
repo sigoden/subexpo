@@ -11,9 +11,8 @@
     min-height: 50px;
     font-size: 14px;
     color: black;
-    display: -webkit-box;
-    display: -ms-flexbox;
     display: flex;
+    flex-wrap: nowrap;
     align-items: center;
     border-bottom: 1px solid #e7eaf3;
 }

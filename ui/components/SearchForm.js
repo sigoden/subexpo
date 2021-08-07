@@ -9,23 +9,21 @@ const { RangePicker } = DatePicker;
 
 function getModules(modules, type) {
   if (!Array.isArray(modules)) return [];
-  return modules.map(mod => {
+  return modules.filter(mod => Array.isArray(mod[type]) && mod[type].length > 0).map(mod => {
     const modName = camelCase(mod.name);
+    const childNames = mod[type]?.map(name => {
+      if (type === "calls") {
+        return camelCase(name);
+      }
+      return name;
+    });
     return {
       value: modName,
       label: modName,
       children: [
-        { value: "", label: type === "calls" ? "all" : "All"},
-        ...(
-          mod[type]?.map(name => {
-            if (type === "calls") {
-              name = camelCase(name);
-            }
-            return {value: name, label: name};
-          }) ||
-          []
-        )
-      ],
+        { value: "", label: type === "calls" ? "all" : "All" },
+        ...childNames.map(name => ({ value: name, label: name })),
+      ]
     }
   });
 }

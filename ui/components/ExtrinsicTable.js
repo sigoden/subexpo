@@ -1,7 +1,8 @@
 import { Table } from "antd";
 import Link from "next/link";
-import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, CloseCircleOutlined, MinusSquareOutlined, PlusSquareOutlined } from "@ant-design/icons";
 import { ecllipseHash, formatTimeAgo } from "../lib/utils";
+import Args from "./Args";
 
 const columns = [
   {
@@ -47,6 +48,17 @@ export default function ExtrinsicTable (props) {
         columns.filter(v => v.dataIndex !== "blockNum" && v.dataIndex !== "blockAt") :
         columns}
       rowKey="extrinsicId" 
+      expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
+      expandIcon={({ expanded, onExpand, record }) =>
+        expanded ? (
+          <MinusSquareOutlined onClick={e => onExpand(record, e)} />
+        ) : (
+          <PlusSquareOutlined onClick={e => onExpand(record, e)} />
+        )
+      }
+      expandable={{
+        expandedRowRender: record => <Args args={record.args} />
+      }}
       {...props} 
     />
   )
