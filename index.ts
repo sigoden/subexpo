@@ -213,8 +213,8 @@ async function saveBlock(header: Header, finalized: boolean) {
       extrinsicHash: ex.hash.toHex(),
       isSigned,
       success,
-      fee: paymentInfo ? paymentInfo.partialFee.toBigInt() : 0,
-      tip: ex.tip.toBigInt(),
+      fee: (paymentInfo ? paymentInfo.partialFee.toBigInt() : 0).toString(),
+      tip: ex.tip.toBigInt().toString(),
     }
   });
   const logs = signedBlock.block.header.digest.logs.map((log, index) => {

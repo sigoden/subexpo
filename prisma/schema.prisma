@@ -51,8 +51,8 @@ model ChainExtrinsic {
   extrinsicHash   String       @unique
   isSigned        Boolean
   success         Boolean
-  fee             BigInt
-  tip             BigInt
+  fee             String
+  tip             String
   versionInfo     Int
   extrinsicLength Int
   ChainBlock      ChainBlock?  @relation(fields: [blockNum], references: [blockNum])
@@ -63,7 +63,6 @@ model ChainLog {
   blockNum   Int
   logType    String
   data       Json
-  finalized  Boolean     @default(false)
   ChainBlock ChainBlock? @relation(fields: [blockNum], references: [blockNum])
 }
 
