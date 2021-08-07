@@ -150,14 +150,14 @@ async function saveBlock(header: Header, finalized: boolean) {
     await addSpecVersion(header.hash, blockSpecVersion);
   }
   const events: ChainEvent[] = [];
-  const extrinsics = signedBlock.block.extrinsics.map((ex, index) => {
+  const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
     const { isSigned, method: { method, section } } = ex;
 
     if (section === "timestamp" && method === "set") {
       blockAt = Math.floor(parseInt(ex.args[0].toString()) / 1000);
     }
 
-    let paymentInfo = paymentInfos[index];
+    let paymentInfo = paymentInfos[exIndex];
 
     const exArgs = ex.method.args.map((arg, exIndex) => {
       const argMeta = ex.meta.args[exIndex];
@@ -169,7 +169,7 @@ async function saveBlock(header: Header, finalized: boolean) {
     });
     let exEvents = records
       .map((record, recordIndex) => ({ record, recordIndex }))
-      .filter(({record: { phase } }) => phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(index));
+      .filter(({record: { phase } }) => phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(exIndex));
     let success = true;
     exEvents.forEach(({ record, recordIndex }, evIndex) => {
       if (api.events.system.ExtrinsicFailed.is(record.event)) {
@@ -190,17 +190,16 @@ async function saveBlock(header: Header, finalized: boolean) {
         eventId: `${blockNum}-${recordIndex}`,
         blockNum,
         blockAt,
-        extrinsicIdx: index,
+        extrinsicId: `${blockNum}-${exIndex}`,
         section,
         method,
         eventIdx: recordIndex,
         data: eventData as any,
-        extrinsicHash: ex.hash.toHex(),
       });
     });
 
     return {
-      extrinsicId: `${blockNum}-${index}`,
+      extrinsicId: `${blockNum}-${exIndex}`,
       blockNum,
       blockAt,
       extrinsicLength: ex.length,

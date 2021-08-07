@@ -28,14 +28,13 @@ model ChainEvent {
   eventId        String          @id
   blockNum       Int
   blockAt        Int
-  extrinsicIdx   Int
+  extrinsicId    String
   eventIdx       Int
   section        String
   method         String
   data           Json
-  extrinsicHash  String
   ChainBlock     ChainBlock?     @relation(fields: [blockNum], references: [blockNum])
-  ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicHash], references: [extrinsicHash])
+  ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId])
 }
 
 model ChainExtrinsic {
