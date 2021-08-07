@@ -14,7 +14,7 @@ const columns = [
   {
     title: "Block",
     dataIndex: "blockNum",
-    render: blockNum => <Link href={`/block/${blockNum}`}><a>{blockNum}</a></Link>
+    render: blockNum => <Link href={`/blocks/${blockNum}`}><a>{blockNum}</a></Link>
   },
   {
     title: "Status",
@@ -29,22 +29,22 @@ const columns = [
   {
     title: "Extrinsics",
     dataIndex: "extrinsicsCount",
-    render: (extrinsicsCount, record) => extrinsicsCount > 0 ? <Link href={`/block/${record.blockNum}?tab=events`}><a>{extrinsicsCount}</a></Link> : extrinsicsCount,
+    render: (extrinsicsCount, record) => extrinsicsCount > 0 ? <Link href={`/blocks/${record.blockNum}?tab=extrinsics`}><a>{extrinsicsCount}</a></Link> : extrinsicsCount,
   },
   {
     title: "Events",
     dataIndex: "eventsCount",
-    render: (eventsCount, record) => eventsCount > 0 ? <Link href={`/block/${record.blockNum}?tab=events`}><a>{eventsCount}</a></Link> : eventsCount,
+    render: (eventsCount, record) => eventsCount > 0 ? <Link href={`/blocks/${record.blockNum}?tab=events`}><a>{eventsCount}</a></Link> : eventsCount,
   },
   {
     title: "Validator",
     dataIndex: "validator",
-    render: hash => <Link href={`/account/${hash}`}><a>{ecllipseHash(hash)}</a></Link>,
+    render: hash => <Link href={`/accounts/${hash}`}><a>{ecllipseHash(hash)}</a></Link>,
   },
   {
     title: "Block hash",
     dataIndex: "blockHash",
-    render: hash => <Link href={`/block/${hash}`}><a>{ecllipseHash(hash)}</a></Link>,
+    render: (hash, record) => <Link href={`/blocks/${record.blockNum}`}><a>{ecllipseHash(hash)}</a></Link>,
   }
 ]
 

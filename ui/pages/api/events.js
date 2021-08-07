@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         select: {
           eventId: true,
           blockNum: true,
-          extrinsicHash: true,
+          extrinsicId: true,
           blockAt: true,
           section: true,
           method: true,

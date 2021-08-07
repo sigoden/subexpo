@@ -15,7 +15,7 @@ function getModules(modules, type) {
       value: modName,
       label: modName,
       children: [
-        { value: "", label: "*"},
+        { value: "", label: type === "calls" ? "all" : "All"},
         ...(
           mod[type]?.map(name => {
             if (type === "calls") {

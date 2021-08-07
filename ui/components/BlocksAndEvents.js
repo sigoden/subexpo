@@ -25,19 +25,26 @@ const events = Array.from(Array(5)).map((_, index) => {
 });
 
 
-function Block({ blockNum, eventsCount, exterinsicsCount, blockAt, finalized }) {
+function Block({ blockNum, eventsCount, extrinsicsCount, blockAt, finalized }) {
   return (
     <Row className={styles.block}>
       <Col>
         <Row className={styles.blockNum}>
           <div className={styles.blockNumTitle}>Block#</div>
-          <div className={styles.blockNumValue}>{formatNum(blockNum)}</div>
+          <div className={styles.blockNumValue}>
+            <Link href={`/blocks/${blockNum}`}>
+              {formatNum(blockNum)}
+            </Link>
+          </div>
         </Row>
         <Row className={styles.blockStats}>
           <div className={styles.blockStatsText}>Includes</div>
           <div className={styles.blockStatsList}>
-            <div>{exterinsicsCount} Extrinsic</div>
-            <div>{eventsCount} Event</div>
+            <Link href={`/blocks/${blockNum}?tab=extrinsics`}><a>{extrinsicsCount} Extrinsic</a></Link>
+            {eventsCount.length ?
+              <Link href={`/blocks/${blockNum}?tab=events`}><a style={{marginLeft: "0.75rem"}}>{eventsCount} Event</a></Link> :
+              <div style={{marginLeft: "0.75rem"}}>{eventsCount} Event</div>
+            }
           </div>
         </Row>
       </Col>
@@ -51,14 +58,16 @@ function Block({ blockNum, eventsCount, exterinsicsCount, blockAt, finalized }) 
   );
 }
 
-function Event({ section, method, eventId }) {
+function Event({ section, method, eventId, extrinsicId }) {
   return (
     <Row className={styles.event}>
       <Col>
         {section + "." + method}
       </Col>
       <Col className={styles.eventId}>
-        {formatNumIdx(eventId)}
+        <Link href={`/extrinsics/${extrinsicId}?event=${eventId}`}>
+          <a>{formatNumIdx(eventId)}</a>
+        </Link>
       </Col>
     </Row>
   );

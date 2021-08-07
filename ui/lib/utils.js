@@ -24,6 +24,10 @@ export function formatTimeAgo(time, base = Date.now(), simple = false) {
   return simple ? "".concat(days, " ").concat(1 === days ? "day" : "days", " ago") : "".concat(days, " ").concat(1 === days ? "day" : "days").concat(0 === hours ? "" : 1 == hours ? " 1 hr" : " ".concat(hours, " hrs"), " ago")
 }
 
+export function formatTimeUtc(time) {
+  return new Date(time).toISOString().replace(/T/, ' ').slice(0, -5) + " (+UTC)";
+}
+
 export function ecllipseHash(hash) {
   if (hash <= 16) return hash;
   return hash.slice(0, 7) + "...." + hash.slice(-5);
