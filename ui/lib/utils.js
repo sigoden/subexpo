@@ -1,3 +1,5 @@
+import * as moment from "moment";
+
 export function formatTimeAgo(time, base = Date.now(), simple = false) {
   time = new Date(time);
   const passSecs = parseInt((base - time) / 1e3, 10);
@@ -40,4 +42,37 @@ export function formatNum(num) {
 export function formatNumIdx(numIdx) {
   const [num, idx] = numIdx.split("-");
   return formatNum(num) + "-" + idx;
+}
+
+export function parseQueryForm(query) {
+  let module = [];
+  let date = [];
+  if (query.section) {
+    module.push(query.section);
+    if (query.method) {
+      module.push(query.method);
+    }
+  }
+  if (query.startDate && query.endDate) {
+    const startDate = parseInt(query.startDate);
+    const endDate = parseInt(query.endDate);
+    if (startDate && endDate) {
+      date = [moment(startDate * 1000), moment(endDate * 1000)];
+    }
+  }
+  return { module, date };
+}
+
+export function stringifyQueryForm(qs, queryForm) {
+  if (queryForm.module?.length) {
+    qs += `&section=${queryForm.module[0]}`;
+    if (queryForm.module[1]) {
+      qs += `&method=${queryForm.module[1]}`;
+    }
+  }
+  if (queryForm.date?.length) {
+    qs += `&startDate=${Math.floor(queryForm.date[0].toDate().getTime() / 1000)}`;
+    qs += `&endDate=${Math.ceil(queryForm.date[1].toDate().getTime() / 1000)}`;
+  }
+  return qs;
 }
