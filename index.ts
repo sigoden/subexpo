@@ -19,13 +19,13 @@ async function main() {
 async function startChain() {
   const provider = new WsProvider(process.env.ENDPOINT);
   api = await ApiPromise.create({ provider, types })
+  await api.isReady;
   const chainVersions = await prisma.chainVersion.findMany();
   chainVersions.forEach(chainVersion => {
     chainSpecVersions.add(chainVersion.specVersion);
   });
-  let isSyncing = true;
-  await api.isReady
   runQueue();
+  let isSyncing = true;
   while (isSyncing) {
     await fixMissBlocks();
     isSyncing = await syncChain();
@@ -37,7 +37,7 @@ async function syncChain() {
   const finalizedBlockNum = await getFinalizedBlockNum();
   const lastBlockNum = await getSavedBlockNum();
   const isSyncing = finalizedBlockNum - lastBlockNum > 1;
-  for (let blockNum = lastBlockNum + 1; blockNum < finalizedBlockNum; blockNum++) {
+  for (let blockNum = lastBlockNum; blockNum < finalizedBlockNum; blockNum++) {
     const header = await getBlockHeader(blockNum);
     await saveBlock(header, true);
     syncBlockNum = blockNum;

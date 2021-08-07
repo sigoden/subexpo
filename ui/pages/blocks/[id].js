@@ -18,7 +18,7 @@ export async function getServerSideProps({ params }) {
   const { id } = params;
   if (typeof id === "string")  {
     const blockNum = parseInt(id);
-    const where =  blockNum ? { blockNum } : { blockHash: id }
+    const where =  blockNum > -1 ? { blockNum } : { blockHash: id }
     const block = await prisma.chainBlock.findFirst({ where });
     if (block) {
       const [extrinsics, events, logs] = await Promise.all([
@@ -51,18 +51,20 @@ export default function BlockPage({ block, events, extrinsics, logs }) {
         </Col>
       </Row>
       <BlockInfo block={block} />
-      <Tabs className={styles.tabs} defaultActiveKey={router.query.tab || "extrinsics"}>
-        <TabPane tab={`Extrinsics(${extrinsics.length})`} key="extrinsics">
-          <ExtrinsicTable dataSource={extrinsics} inBlock pagination={false} />
-        </TabPane>
-        {events.length > 0 &&
-          <TabPane tab={`Events(${events.length})`} key="events">
-            <EventTable dataSource={events} inBlock pagination={false} />
-          </TabPane>}
-        <TabPane tab={`Logs(${logs.length})`} key="logs">
-            <LogTable dataSource={logs} pagination={false} />
-        </TabPane>
-    </Tabs>
+      {extrinsics.length > 0 && (
+        <Tabs className={styles.tabs} defaultActiveKey={router.query.tab || "extrinsics"}>
+          <TabPane tab={`Extrinsics(${extrinsics.length})`} key="extrinsics">
+            <ExtrinsicTable dataSource={extrinsics} inBlock pagination={false} />
+          </TabPane>
+          {events.length > 0 &&
+            <TabPane tab={`Events(${events.length})`} key="events">
+              <EventTable dataSource={events} inBlock pagination={false} />
+            </TabPane>}
+          <TabPane tab={`Logs(${logs.length})`} key="logs">
+              <LogTable dataSource={logs} pagination={false} />
+          </TabPane>
+        </Tabs>
+      )}
     </div>
   )
 }

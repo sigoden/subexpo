@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 async function detectKind(q) {
   if (typeof q !== "string") return
   const blockNum = parseInt(q);
-  if (blockNum) {
+  if (blockNum > -1) {
     const block = prisma.chainBlock.findFirst({ where: { blockNum }});
     if (!block) return;
     return "block";
