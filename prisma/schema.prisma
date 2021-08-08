@@ -44,6 +44,7 @@ model ChainExtrinsic {
   method          String
   section         String
   args            Json
+  calls           String?
   events          ChainEvent[]
   accountId       String?
   signature       String?
@@ -51,6 +52,7 @@ model ChainExtrinsic {
   extrinsicHash   String       @unique
   isSigned        Boolean
   success         Boolean
+  error           Json?
   fee             String
   tip             String
   versionInfo     Int

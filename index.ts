@@ -1,15 +1,16 @@
-import { PrismaClient, ChainEvent } from '@prisma/client'
+import { PrismaClient, ChainEvent, ChainVersion } from '@prisma/client'
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { CodecHash } from "@polkadot/types/interfaces";
+import { Call, CodecHash, FunctionArgumentMetadataV9 } from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
 import { MaxPriorityQueue } from '@datastructures-js/priority-queue'
+import { Codec } from '@polkadot/types/types';
 const types = require("./types");
 
 const prisma = new PrismaClient()
 const queue = new MaxPriorityQueue<Header>();
 
 let api: ApiPromise;
-let chainSpecVersions = new Set();
+let chainSpecVersions = new Map<number, ChainVersion>();
 let syncBlockNum = 0;
 
 async function main() {
@@ -22,7 +23,7 @@ async function startChain() {
   await api.isReady;
   const chainVersions = await prisma.chainVersion.findMany();
   chainVersions.forEach(chainVersion => {
-    chainSpecVersions.add(chainVersion.specVersion);
+    chainSpecVersions.set(chainVersion.specVersion, chainVersion);
   });
   runQueue();
   let isSyncing = true;
@@ -149,10 +150,14 @@ async function saveBlock(header: Header, finalized: boolean) {
     }
   }));
   const blockSpecVersion = runtimeVersion.specVersion.toNumber();
-  if (!chainSpecVersions.has(blockSpecVersion)) {
-    await addSpecVersion(header.hash, blockSpecVersion);
+  let chainVersion: ChainVersion;
+  if (chainSpecVersions.has(blockSpecVersion)) {
+    chainVersion = chainSpecVersions.get(blockSpecVersion) as ChainVersion;
+  } else {
+    chainVersion = await addSpecVersion(header.hash, blockSpecVersion);
   }
   const events: ChainEvent[] = [];
+  let extrinsicError: any;
   const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
     const { isSigned, method: { method, section } } = ex;
 
@@ -161,25 +166,32 @@ async function saveBlock(header: Header, finalized: boolean) {
     }
 
     let paymentInfo = paymentInfos[exIndex];
-
-    const exArgs = ex.method.args.map((arg, exIndex) => {
-      const argMeta = ex.meta.args[exIndex];
-      return {
-        name: argMeta.name.toString(),
-        type: argMeta.type.toString(),
-        value: arg.toString(),
-      }
-    });
+    const calls = new Set<string>();
+    const exArgs = ex.method.args.map((arg, argIndex) => parseArg(calls, arg, ex.meta.args[argIndex]));
     let exEvents = records
       .map((record, recordIndex) => ({ record, recordIndex }))
       .filter(({record: { phase } }) => phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(exIndex));
     let success = true;
-    exEvents.forEach(({ record, recordIndex }, evIndex) => {
-      if (api.events.system.ExtrinsicFailed.is(record.event)) {
+    exEvents.forEach(({ record, recordIndex }) => {
+      const { event } = record;
+      if (api.events.system.ExtrinsicFailed.is(event)) {
         success = false;
+        const dispatchError = event.data[0];
+        if (dispatchError.isModule) {
+          const dispatchErrorModule = event.data[0].asModule;
+          const module = (chainVersion.rawData as any).modules[dispatchErrorModule.index.toNumber()];
+          const error = module.errors[dispatchErrorModule.error.toNumber()];
+          extrinsicError = { module: module.name, name: error.name, doc: error.docs[0] };
+        } else {
+          const dispatchErrorObj =  dispatchError.toHuman() as any;
+          const name = Object.keys(dispatchErrorObj)[0];
+          const value = dispatchErrorObj[name];
+          extrinsicError = { module: "", name, value, doc: "" };
+        }
+        return;
       }
       
-      const { data, section, meta, method } = record.event;
+      const { data, section, meta, method } = event;
       if (section === "system" && method === "ExtrinsicSuccess") {
         return;
       }
@@ -209,6 +221,8 @@ async function saveBlock(header: Header, finalized: boolean) {
       versionInfo: ex.version,
       method,
       section,
+      calls: Array.from(calls).map(v => ";" + v).join(""),
+      error: extrinsicError, 
       args: exArgs as any,
       accountId: isSigned ? ex.signer.toString() : "",
       signature: isSigned ? ex.signature.toHex() : "",
@@ -266,16 +280,51 @@ async function saveBlock(header: Header, finalized: boolean) {
   }
 }
 
+interface ParsedArg {
+  name: string;
+  type: string;
+  value: any;
+}
+
+function parseArg(calls: Set<string>, arg: Codec, argMeta: FunctionArgumentMetadataV9): ParsedArg {
+  const name = argMeta.name.toString();
+  const type = argMeta.type.toString();
+  let value;
+  if (type === "Call") {
+    value = parseCallArg(calls, arg as Call);
+  } else if (type === "Vec<Call>") {
+    value = (arg as any as Call[]).map(call => parseCallArg(calls, call));
+  } else {
+    value = arg.toString();
+  }
+  return { name, type, value };
+}
+
+interface ParsedCallArg {
+  section: string,
+  method: string,
+  args: ParsedArg[];
+}
+
+function parseCallArg(calls: Set<string>, call: Call): ParsedCallArg {
+  calls.add(`${call.section}.${call.method}`);
+  return {
+    section: call.section,
+    method: call.method,
+    args: call.args.map((callArg, callArgIndex) => parseArg(calls, callArg, call.meta.args[callArgIndex])),
+  }
+}
+
 async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
-  const exist = await prisma.chainVersion.count({ where: { specVersion } });
-  if (exist) return;
+  let version = await prisma.chainVersion.findFirst({ where: { specVersion } });
+  if (version) return version;
   const latestChainVersion = await prisma.chainVersion.findFirst({ select: { mergedModules: true }, orderBy: { specVersion: "desc" }});
   const metadata = await api.rpc.state.getMetadata(blockHash);
   const wrapMetadata = metadata.toHuman() as any;
   const metadataObj = wrapMetadata.metadata[Object.keys(wrapMetadata.metadata)[0]]
   const modules = getChainModules(metadataObj) as any;
   const mergedModules = latestChainVersion ? mergeChainModule(latestChainVersion.mergedModules as any, modules) : modules;
-  await prisma.chainVersion.create({
+  version = await prisma.chainVersion.create({
     data: {
       specVersion,
       modules,
@@ -283,7 +332,8 @@ async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
       rawData: metadataObj,
     },
   });
-  chainSpecVersions.add(specVersion);
+  chainSpecVersions.set(specVersion, version);
+  return version;
 }
 
 interface ChainModule {
