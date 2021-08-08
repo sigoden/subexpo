@@ -4,6 +4,7 @@ const { Header, Content } = Layout;
 import Link from "next/link";
 import SearchBar from "./SearchBar";
 import styles from "./MainLayout.module.css";
+import { useRouter } from "next/router";
 
 const navs = [
   ["Blocks", "/blocks"],
@@ -13,6 +14,7 @@ const navs = [
 ];
 
 export default function MainLayout({ children, noSearch }) {
+  const router = useRouter();
   return (
     <Layout>
       <Header>
@@ -23,10 +25,15 @@ export default function MainLayout({ children, noSearch }) {
             </div>
           </Col>
           <Col style={{ marginLeft: 'auto' }}>
-            <Menu className={styles.navs} theme="dark" mode="horizontal">
-              {navs.map(([title, href], index) => {
+            <Menu 
+              className={styles.navs}
+              theme="dark"
+              mode="horizontal"
+              selectedKeys={navs.filter(v => router.pathname.startsWith(v[1])).map(v => v[1])}
+            >
+              {navs.map(([title, href]) => {
                   return (
-                    <Menu.Item key={index+1}>
+                    <Menu.Item key={href}>
                       <Link href={href}>{title}</Link>
                     </Menu.Item>
                   );
