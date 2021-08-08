@@ -7,7 +7,7 @@ import FinalizedStatus from "./FinializeStatus";
 import ExtrinsicResult from "./ExtrinsicResult";
 import CopyClipboard from "./CopyClipboard";
 
-export default function ExtrinsicInfo({ block, extrinsic }) {
+export default function ExtrinsicInfo({ extrinsic }) {
   return (
     <div className={styles.container}>
       <Row className={styles.item}>
@@ -20,7 +20,7 @@ export default function ExtrinsicInfo({ block, extrinsic }) {
         <Col className={styles.itemLabel} md={6}>Block</Col>
         <Col className={styles.itemValue}>
           <span>
-            <FinalizedStatus finalized={block.finalized} />
+            <FinalizedStatus finalized={extrinsic.finalized} />
             {extrinsic.blockNum}
           </span>
         </Col>
@@ -78,7 +78,7 @@ export default function ExtrinsicInfo({ block, extrinsic }) {
           <Row className={styles.item}>
             <Col className={styles.itemLabel} md={6}>Result</Col>
             <Col className={styles.itemValue}>
-              <ExtrinsicResult success={block.success} text />
+              <ExtrinsicResult success={extrinsic.success} text />
             </Col>
           </Row>
           <Row className={styles.item}>

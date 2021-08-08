@@ -119,7 +119,10 @@ async function saveBlock(header: Header, finalized: boolean) {
   if (chainBlock) {
     if (chainBlock.blockHash === blockHash ) {
       if (finalized && !chainBlock.finalized) {
-        await prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }});
+        await prisma.$transaction([
+          prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }}),
+          prisma.chainExtrinsic.updateMany({ where: { blockNum }, data: { finalized: true }}),
+        ]);
         console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
       }
       return;
@@ -215,6 +218,7 @@ async function saveBlock(header: Header, finalized: boolean) {
       success,
       fee: (paymentInfo ? paymentInfo.partialFee.toBigInt() : 0).toString(),
       tip: ex.tip.toBigInt().toString(),
+      finalized,
     }
   });
   const logs = signedBlock.block.header.digest.logs.map((log, index) => {

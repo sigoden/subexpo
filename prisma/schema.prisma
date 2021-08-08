@@ -55,6 +55,7 @@ model ChainExtrinsic {
   tip             String
   versionInfo     Int
   extrinsicLength Int
+  finalized       Boolean      @default(false)
   ChainBlock      ChainBlock?  @relation(fields: [blockNum], references: [blockNum])
 }
 

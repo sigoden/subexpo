@@ -15,17 +15,14 @@ export async function getServerSideProps({ params }) {
     const where = /^\d+-\d+$/.test(id) ? { extrinsicId: id } : {  extrinsicHash: id  };
     const extrinsic = await prisma.chainExtrinsic.findFirst({ where });
     if (extrinsic) {
-      const [block, events] = await Promise.all([
-        prisma.chainBlock.findFirst({ where: { blockNum: extrinsic.blockNum }}),
-        prisma.chainEvent.findMany({ where: { extrinsicId: extrinsic.extrinsicId }}),
-      ]);
-      return { props: { block, extrinsic, events } }
+      const events = await prisma.chainEvent.findMany({ where: { extrinsicId: extrinsic.extrinsicId }});
+      return { props: { extrinsic, events } }
     }
   }
   return { notFound: true };
 }
 
-export default function ExtrinsicPage({ block, events, extrinsic }) {
+export default function ExtrinsicPage({ events, extrinsic }) {
   const {extrinsicId} = extrinsic;
   return (
     <div>
@@ -37,7 +34,7 @@ export default function ExtrinsicPage({ block, events, extrinsic }) {
           <SearchBar />
         </Col>
       </Row>
-      <ExtrinsicInfo extrinsic={extrinsic} block={block} />
+      <ExtrinsicInfo extrinsic={extrinsic} />
       {events.length > 0 &&
         <Tabs className={styles.tabs} defaultActiveKey="events">
           <TabPane tab={`Events(${events.length})`} key="events">
