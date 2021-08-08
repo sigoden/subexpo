@@ -209,6 +209,7 @@ async function saveBlock(header: Header, finalized: boolean) {
         section,
         method,
         eventIdx: recordIndex,
+        accountId: isSigned ? ex.signer.toString() : "",
         data: eventData as any,
       });
     });

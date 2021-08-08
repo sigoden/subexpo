@@ -33,6 +33,7 @@ model ChainEvent {
   section        String
   method         String
   data           Json
+  accountId      String?
   ChainBlock     ChainBlock?     @relation(fields: [blockNum], references: [blockNum])
   ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId])
 }
