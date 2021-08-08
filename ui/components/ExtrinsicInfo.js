@@ -1,4 +1,5 @@
 import { Col, Row } from "antd";
+import Link from "next/link";
 import { formatTimeUtc } from "../lib/utils";
 import Args from "./Args";
 
@@ -6,23 +7,27 @@ import styles from "./ExtrinsicInfo.module.css";
 import FinalizedStatus from "./FinializeStatus";
 import ExtrinsicResult from "./ExtrinsicResult";
 import CopyClipboard from "./CopyClipboard";
+import Balance from "./Balance";
 
 const items  = [
   {
     title: "TimeStamp",
+    show: () => true,
     render: extrinsic => formatTimeUtc(extrinsic.blockAt * 1000),
   },
   {
     title: "Block",
+    show: () => true,
     render: extrinsic => (
         <span>
           <FinalizedStatus finalized={extrinsic.finalized} />
-          {extrinsic.blockNum}
+          <Link href={`/blocks/${extrinsic.blockNum}`}><a>{extrinsic.blockNum}</a></Link>
         </span>
     )
   },
   {
     title: "Extrinsic Hash",
+    show: () => true,
     render: extrinsic => (
       <>
         {extrinsic.extrinsicHash} <CopyClipboard text={extrinsic.extrinsicHash} />
@@ -31,15 +36,17 @@ const items  = [
   },
   {
     title: "Module",
+    show: () => true,
     render: extrinsic => extrinsic.section,
   },
   {
     title: "Call",
+    show: () => true,
     render: extrinsic => extrinsic.method,
   },
   {
     title: "Sender",
-    needSign: true,
+    show: extrinsic => extrinsic.isSigned,
     render: extrinsic => (
       <>
         {extrinsic.accountId} <CopyClipboard text={extrinsic.accountId} />
@@ -48,34 +55,41 @@ const items  = [
   },
   {
     title: "Fee",
-    needSign: true,
-    render: extrinsic => extrinsic.fee,
+    show: extrinsic => extrinsic.isSigned,
+    render: extrinsic => <Balance balance={extrinsic.fee} />,
+  },
+  {
+    title: "Tip",
+    show: extrinsic => extrinsic.tip !== "0",
+    render: extrinsic => <Balance balance={extrinsic.tip} />,
   },
   {
     title: "Nonce",
-    needSign: true,
+    show: extrinsic => extrinsic.isSigned,
     render: extrinsic => extrinsic.nonce,
   },
   {
     title: "Result",
+    show: () => true,
     render: extrinsic => extrinsic.success ?
           <ExtrinsicResult success={true} detail={<span>Success</span>} /> :
           <ExtrinsicResult success={false} detail={<span>Failed ({extrinsic.error.name})</span>} />
   },
   {
     title: "Parameters",
+    show: () => true,
     render: extrinsic => <Args args={extrinsic.args}/>,
   },
   {
     title: "Signature",
-    needSign: true,
+    show: extrinsic => extrinsic.isSigned,
     cls: styles.itemSignature,
     render: extrinsic => extrinsic.signature,
   }
 ];
 
 export default function ExtrinsicInfo({ extrinsic }) {
-  const filterdItems = extrinsic.isSigned ? items : items.filter(v => !v.needSign);
+  const filterdItems = items.filter(v => v.show(extrinsic));
   return (
     <div className={styles.container}>
       {filterdItems.map(({title, render, cls}) => (

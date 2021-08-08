@@ -1,9 +1,8 @@
 import { useRouter } from "next/router";
 import { useRequest } from "@umijs/hooks";
 import MainLayout from "../components/MainLayout";
-import SearchForm from "../components/SearchForm";
+import SearchForm, { parseQueryForm, stringifyQueryForm } from "../components/SearchForm";
 import EventTable from "../components/EventTable";
-import { parseQueryForm, stringifyQueryForm } from "../lib/utils";
 
 async function listEvents(paginatedParams, queryForm) {
 

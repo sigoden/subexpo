@@ -1,6 +1,7 @@
 import { Row, Col  } from "antd";
 
 import styles from "./Args.module.css";
+import Balance from "./Balance";
 
 export default function Args({ args }) {
   return (
@@ -69,6 +70,8 @@ function ArgValue({ type, value }) {
         ))}
       </div>
     )
+  } else if (type === "Balance" || type === "Compact<Balance>") {
+    return <Balance balance={value} />
   }
-return <div>{value}</div>;
+  return <div>{value}</div>;
 }

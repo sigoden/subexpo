@@ -1,27 +1,23 @@
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/router";
-import { Input } from "antd";
-import { useRequest } from "@umijs/hooks";
+import { Input, message } from "antd";
 const { Search } = Input;
 
 import styles from "./SearchBar.module.css";
 
-async function search(q) {
-  return fetch(`/api/search?q=${q}`).then(res => res.json());
-}
-
 export default function SearchBar() {
   const router = useRouter();
-  const { data, run, params } =  useRequest(search, { manual: true })
-  useEffect(() => {
-    if (!data) return; 
-    const { kind } = data;
-    if (kind === "block") {
-      router.push("/blocks/" + params[0]);
-    } else if (kind === "extrinsic") {
-      router.push("/extrinsics/" + params[0]);
-    }
-  }, [data, params, router]);
+  const onSearch = useCallback(async q => {
+      const data = await fetch(`/api/search?q=${q}`).then(res => res.json());
+      const { kind, value } = data;
+      if (kind === "block") {
+        router.push("/blocks/" + value);
+      } else if (kind === "extrinsic") {
+        router.push("/extrinsics/" +value);
+      } else {
+        message.error("Not found");
+      }
+  }, [router]);
   return (
     <div className={styles.wrapSearch}>
       <Search
@@ -29,7 +25,7 @@ export default function SearchBar() {
         placeholder="Search by Block / Extrinsic / Account"
         enterButton="Search"
         size="large"
-        onSearch={run}
+        onSearch={onSearch}
       />
     </div>
   );
