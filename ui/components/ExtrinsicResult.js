@@ -1,6 +1,6 @@
 import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 
-export default function ExtrinsicResult({ success, text }) {
+export default function ExtrinsicResult({ success, detail }) {
   return (
     <>
       <span>
@@ -10,7 +10,7 @@ export default function ExtrinsicResult({ success, text }) {
         }
       </span>
       <span style={{marginLeft: "0.5rem"}}>
-        {text ? (success ? "Success" : "Failed" ) : ""}
+        {detail}
       </span>
     </>
   );

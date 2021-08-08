@@ -10,7 +10,6 @@ const navs = [
   ["Blocks", "/blocks"],
   ["Extrinsics", "/extrinsics"],
   ["Events", "/events"],
-  ["Accounts", "/accounts"],
 ];
 
 export default function MainLayout({ children, noSearch }) {

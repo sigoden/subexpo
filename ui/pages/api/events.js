@@ -1,7 +1,7 @@
 import prisma from "../../lib/prisma";
 
 export default async function handler(req, res) {
-  const { current, pageSize, section, method, startDate, endDate } = req.query;
+  const { current, pageSize, section, method, startDate, endDate, accountId } = req.query;
   const currentValue = parseInt(current) || 1;
   const pageSizeValue = parseInt(pageSize) || 20;
   const startDateValue = parseInt(startDate);
@@ -18,6 +18,9 @@ export default async function handler(req, res) {
     } else {
       where.blockAt = { lt: endDateValue };
     }
+  }
+  if (accountId) {
+    where.accountId = accountId;
   }
 
   const [total, list] = await Promise.all(

@@ -7,88 +7,85 @@ import FinalizedStatus from "./FinializeStatus";
 import ExtrinsicResult from "./ExtrinsicResult";
 import CopyClipboard from "./CopyClipboard";
 
+const items  = [
+  {
+    title: "TimeStamp",
+    render: extrinsic => formatTimeUtc(extrinsic.blockAt * 1000),
+  },
+  {
+    title: "Block",
+    render: extrinsic => (
+        <span>
+          <FinalizedStatus finalized={extrinsic.finalized} />
+          {extrinsic.blockNum}
+        </span>
+    )
+  },
+  {
+    title: "Extrinsic Hash",
+    render: extrinsic => (
+      <>
+        {extrinsic.extrinsicHash} <CopyClipboard text={extrinsic.extrinsicHash} />
+      </>
+    ),
+  },
+  {
+    title: "Module",
+    render: extrinsic => extrinsic.section,
+  },
+  {
+    title: "Call",
+    render: extrinsic => extrinsic.method,
+  },
+  {
+    title: "Sender",
+    needSign: true,
+    render: extrinsic => (
+      <>
+        {extrinsic.accountId} <CopyClipboard text={extrinsic.accountId} />
+      </>
+    ),
+  },
+  {
+    title: "Fee",
+    needSign: true,
+    render: extrinsic => extrinsic.fee,
+  },
+  {
+    title: "Nonce",
+    needSign: true,
+    render: extrinsic => extrinsic.nonce,
+  },
+  {
+    title: "Result",
+    render: extrinsic => extrinsic.success ?
+          <ExtrinsicResult success={true} detail={<span>Success</span>} /> :
+          <ExtrinsicResult success={false} detail={<span>Failed ({extrinsic.error.name})</span>} />
+  },
+  {
+    title: "Parameters",
+    render: extrinsic => <Args args={extrinsic.args}/>,
+  },
+  {
+    title: "Signature",
+    needSign: true,
+    cls: styles.itemSignature,
+    render: extrinsic => extrinsic.signature,
+  }
+];
+
 export default function ExtrinsicInfo({ extrinsic }) {
+  const filterdItems = extrinsic.isSigned ? items : items.filter(v => !v.needSign);
   return (
     <div className={styles.container}>
-      <Row className={styles.item}>
-        <Col className={styles.itemLabel} md={6}>Timestamp</Col>
-        <Col className={styles.itemValue}>
-          {formatTimeUtc(extrinsic.blockAt * 1000)}
-        </Col>
-      </Row>
-      <Row className={styles.item}>
-        <Col className={styles.itemLabel} md={6}>Block</Col>
-        <Col className={styles.itemValue}>
-          <span>
-            <FinalizedStatus finalized={extrinsic.finalized} />
-            {extrinsic.blockNum}
-          </span>
-        </Col>
-      </Row>
-      <Row className={styles.item}>
-        <Col className={styles.itemLabel} md={6}>Extrinsic Hash</Col>
-        <Col className={styles.itemValue}>
-          {extrinsic.extrinsicHash} <CopyClipboard text={extrinsic.extrinsicHash} />
-        </Col>
-      </Row>
-      <Row className={styles.item}>
-        <Col className={styles.itemLabel} md={6}>Module</Col>
-        <Col className={styles.itemValue}>
-          {extrinsic.section}
-        </Col>
-      </Row>
-      <Row className={styles.item}>
-        <Col className={styles.itemLabel} md={6}>Call</Col>
-        <Col className={styles.itemValue}>
-          {extrinsic.method}
-        </Col>
-      </Row>
-      <Row className={styles.item}>
-        <Col className={styles.itemLabel} md={6}>Call</Col>
-        <Col className={styles.itemValue}>
-          {extrinsic.method}
-        </Col>
-      </Row>
-      <Row className={styles.item}>
-        <Col className={styles.itemLabel} md={6}>Parameters</Col>
-        <Col className={styles.itemValue}>
-          <Args args={extrinsic.args}/>
-        </Col>
-      </Row>
-      {extrinsic.isSigned && (
-        <>
-          <Row className={styles.item}>
-            <Col className={styles.itemLabel} md={6}>Sender</Col>
-            <Col className={styles.itemValue}>
-              {extrinsic.accountId} <CopyClipboard text={extrinsic.accountId} />
-            </Col>
-          </Row>
-          <Row className={styles.item}>
-            <Col className={styles.itemLabel} md={6}>Fee</Col>
-            <Col className={styles.itemValue}>
-              {extrinsic.fee}
-            </Col>
-          </Row>
-          <Row className={styles.item}>
-            <Col className={styles.itemLabel} md={6}>Nonce</Col>
-            <Col className={styles.itemValue}>
-              {extrinsic.nonce}
-            </Col>
-          </Row>
-          <Row className={styles.item}>
-            <Col className={styles.itemLabel} md={6}>Result</Col>
-            <Col className={styles.itemValue}>
-              <ExtrinsicResult success={extrinsic.success} text />
-            </Col>
-          </Row>
-          <Row className={styles.item}>
-            <Col className={styles.itemLabel} md={6}>Signature</Col>
-            <Col className={styles.itemSignature}>
-              {extrinsic.signature}
-            </Col>
-          </Row>
-        </>
-      )}
+      {filterdItems.map(({title, render, cls}) => (
+        <Row className={styles.item} key={title}>
+          <Col className={styles.itemLabel} md={4}>{title}</Col>
+          <Col className={cls || styles.itemValue}>
+            {render(extrinsic)}
+          </Col>
+        </Row>
+      ))}
     </div>
-  );
+  )
 }

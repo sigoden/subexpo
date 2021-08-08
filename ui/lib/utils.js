@@ -45,22 +45,24 @@ export function formatNumIdx(numIdx) {
 }
 
 export function parseQueryForm(query) {
-  let module = [];
-  let date = [];
+  const result = { module: [], date: [] };
   if (query.section) {
-    module.push(query.section);
+    result.module.push(query.section);
     if (query.method) {
-      module.push(query.method);
+      result.module.push(query.method);
     }
   }
   if (query.startDate && query.endDate) {
     const startDate = parseInt(query.startDate);
     const endDate = parseInt(query.endDate);
     if (startDate && endDate) {
-      date = [moment(startDate * 1000), moment(endDate * 1000)];
+      result.date = [moment(startDate * 1000), moment(endDate * 1000)];
     }
   }
-  return { module, date };
+  if (query.accountId) {
+    result.accountId = query.accountId;
+  }
+  return result;
 }
 
 export function stringifyQueryForm(qs, queryForm) {
@@ -73,6 +75,9 @@ export function stringifyQueryForm(qs, queryForm) {
   if (queryForm.date?.length) {
     qs += `&startDate=${Math.floor(queryForm.date[0].toDate().getTime() / 1000)}`;
     qs += `&endDate=${Math.ceil(queryForm.date[1].toDate().getTime() / 1000)}`;
+  }
+  if (queryForm.accountId) {
+    qs += `&accountId=${queryForm.accountId}`;
   }
   return qs;
 }

@@ -1,12 +1,12 @@
 import prisma from "../../lib/prisma";
 
 export default async function handler(req, res) {
-  const { current, pageSize, section, method, startDate, endDate } = req.query;
+  const { current, pageSize, section, method, startDate, endDate, accountId } = req.query;
   const currentValue = parseInt(current) || 1;
   const pageSizeValue = parseInt(pageSize) || 20;
   const startDateValue = parseInt(startDate);
   const endDateValue = parseInt(endDate);
-  const where = {};
+  let where = {};
   if (section) {
     where.section = section;
     if (method) where.method = method;
@@ -19,6 +19,27 @@ export default async function handler(req, res) {
       where.blockAt.lt = endDateValue;
     } else {
       where.blockAt = { lt: endDateValue };
+    }
+  }
+  if (accountId) {
+    where.accountId = accountId;
+  }
+  if (section && method) {
+    let originWhere = where;
+    let callsWhere = {
+      ...Object.keys(originWhere)
+        .filter(v => ["section", "method"].indexOf(v) === -1)
+        .reduce((acc, cur) => {
+          acc[cur] = originWhere[cur];
+          return acc;
+        }, {}),
+      calls: { contains: `;${section}.${method}` },
+    };
+    where = {
+      OR: [
+        originWhere,
+        callsWhere,
+      ]
     }
   }
 

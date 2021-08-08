@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { Form, Cascader,  DatePicker, Button } from "antd";
+import { Form, Cascader, Input,  DatePicker, Button } from "antd";
 import { useRequest } from "@umijs/hooks";
 import { useRouter } from "next/router";
 import moment from "moment";
@@ -58,6 +58,7 @@ export default function SearchForm({ kind }) {
   }, [handle, form]);
 
   const reset = useCallback(() => {
+    form.resetFields();
     handle({});
   }, [handle, form]);
 
@@ -72,6 +73,9 @@ export default function SearchForm({ kind }) {
         </Form.Item>
         <Form.Item label="Date" name="date">
           <RangePicker disabledDate={disableDate} />
+        </Form.Item>
+        <Form.Item label="Account" name="accountId">
+          <Input />
         </Form.Item>
         <Form.Item style={{ marginLeft: "auto"}}>
           <Button onClick={submit}>Filter</Button>
