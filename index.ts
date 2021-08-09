@@ -158,6 +158,7 @@ async function saveBlock(header: Header, finalized: boolean) {
   }
   const events: ChainEvent[] = [];
   let extrinsicError: any;
+  let extrinsicsCount = signedBlock.block.extrinsics.length;
   const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
     const { isSigned, method: { method, section } } = ex;
 
@@ -172,6 +173,7 @@ async function saveBlock(header: Header, finalized: boolean) {
       .map((record, recordIndex) => ({ record, recordIndex }))
       .filter(({record: { phase } }) => phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(exIndex));
     let success = true;
+    let exEventsCount = exEvents.length;
     exEvents.forEach(({ record, recordIndex }) => {
       const { event } = record;
       if (api.events.system.ExtrinsicFailed.is(event)) {
@@ -202,25 +204,23 @@ async function saveBlock(header: Header, finalized: boolean) {
         }
       });
       events.push({
-        eventId: `${blockNum}-${recordIndex}`,
+        eventId: `${blockNum}-${formatIdx(recordIndex, exEventsCount)}`,
         blockNum,
         blockAt,
         extrinsicId: `${blockNum}-${exIndex}`,
         section,
         method,
-        eventIdx: recordIndex,
         accountId: isSigned ? ex.signer.toString() : "",
         data: eventData as any,
       });
     });
 
     return {
-      extrinsicId: `${blockNum}-${exIndex}`,
+      extrinsicId: `${blockNum}-${formatIdx(exIndex, extrinsicsCount)}`,
       blockNum,
       blockAt,
       extrinsicLength: ex.length,
       versionInfo: ex.version,
-      extrinsicIdx: exIndex,
       method,
       section,
       calls: Array.from(calls).map(v => ";" + v).join(""),
@@ -252,7 +252,7 @@ async function saveBlock(header: Header, finalized: boolean) {
     parentHash: signedBlock.block.header.parentHash.toHex(),
     stateRoot: signedBlock.block.header.stateRoot.toHex(),
     extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
-    extrinsicsCount: extrinsics.length,
+    extrinsicsCount,
     eventsCount: events.length,
     specVersion: blockSpecVersion,
     validator: extHeader?.author?.toString() || "",
@@ -388,6 +388,11 @@ async function sleep(ms: number) {
   return new Promise(resolve => {
     setTimeout(resolve, ms);
   });
+}
+
+function formatIdx(idx: number, count: number) {
+  const numDigits = (count - 1).toString().length;
+  return ("0".repeat(numDigits) + idx.toString()).slice(-1 * numDigits);
 }
 
 main().catch(err => console.error(err));

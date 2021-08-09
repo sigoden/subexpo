@@ -37,7 +37,7 @@ export default async function handler(req, res) {
           method: true,
           data: true,
         },
-        orderBy: [{ blockNum: "desc" }, { eventIdx: "desc" }],
+        orderBy: { blockNum: "desc" },
         skip: (currentValue - 1) * pageSizeValue,
         take: pageSizeValue,
       }),

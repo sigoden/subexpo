@@ -19,7 +19,7 @@ export async function getServerSideProps({ params }) {
   if (accountInfo) {
     const extrinsics = await prisma.chainExtrinsic.findMany({
       where: { accountId: id },
-      orderBy: [{ blockNum: "desc" }, { extrinsicIdx: "desc" }],
+      orderBy: { blockNum: "desc" },
       take: 10,
     })
     return {
