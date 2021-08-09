@@ -47,6 +47,7 @@ model ChainExtrinsic {
   args            Json
   calls           String?
   events          ChainEvent[]
+  extrinsicIdx    Int
   accountId       String?
   signature       String?
   nonce           Int

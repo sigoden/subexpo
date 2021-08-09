@@ -220,6 +220,7 @@ async function saveBlock(header: Header, finalized: boolean) {
       blockAt,
       extrinsicLength: ex.length,
       versionInfo: ex.version,
+      extrinsicIdx: exIndex,
       method,
       section,
       calls: Array.from(calls).map(v => ";" + v).join(""),
