@@ -1,5 +1,5 @@
 import { Row, Col  } from "antd";
-
+import Link from "next/link";
 import styles from "./Args.module.css";
 import Balance from "./Balance";
 
@@ -72,6 +72,8 @@ function ArgValue({ type, value }) {
     )
   } else if (type === "Balance" || type === "Compact<Balance>") {
     return <Balance balance={value} />
+  } else if (type === "AccountId" || type === "LookupSource") {
+    return <Link href={`/accounts/${value}`}><a>{value}</a></Link>;
   }
   return <div>{value}</div>;
 }

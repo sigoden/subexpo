@@ -49,7 +49,8 @@ const items  = [
     show: extrinsic => extrinsic.isSigned,
     render: extrinsic => (
       <>
-        {extrinsic.accountId} <CopyClipboard text={extrinsic.accountId} />
+        <Link href={`/accounts/${extrinsic.accountId}`}><a>{extrinsic.accountId}</a></Link>
+        <CopyClipboard text={extrinsic.accountId} />
       </>
     ),
   },

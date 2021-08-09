@@ -7,7 +7,9 @@ export default function Balance({ balance }) {
   if (loading) return <Spin />
   const tokenDecimals = parseInt(data.tokenDecimals[0]);
   let newBalance;
-  if (balance.length > tokenDecimals) {
+  if (balance === "0") {
+    newBalance = "0";
+  } else if (balance.length > tokenDecimals) {
     newBalance = formatNum(balance.slice(0, balance.length - tokenDecimals));
     let decimal = balance.slice(-1 * tokenDecimals).replace(/0\d+$/, "");
     if (decimal.length > 0)

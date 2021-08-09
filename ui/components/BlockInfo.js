@@ -41,7 +41,8 @@ const items  = [
     title: "Validator",
     render: block => (
       <>
-        {block.validator} <CopyClipboard text={block.validator} />
+        <Link href={`/accounts/${block.validator}`}><a>{block.validator}</a></Link>
+        <CopyClipboard text={block.validator} />
       </>
     ),
   },

@@ -3,7 +3,7 @@ import { Form, Cascader, Input,  DatePicker, Button } from "antd";
 import { useRequest } from "@umijs/hooks";
 import { useRouter } from "next/router";
 import moment from "moment";
-import { camelCase } from "change-case";
+import camelCase from "camelcase";
 import styles from "./SearchForm.module.css";
 
 const { RangePicker } = DatePicker;

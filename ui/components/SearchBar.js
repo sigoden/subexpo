@@ -13,7 +13,9 @@ export default function SearchBar() {
       if (kind === "block") {
         router.push("/blocks/" + value);
       } else if (kind === "extrinsic") {
-        router.push("/extrinsics/" +value);
+        router.push("/extrinsics/" + value);
+      } else if (kind === "account") {
+        router.push("/accounts/" + value);
       } else {
         message.error("Not found");
       }

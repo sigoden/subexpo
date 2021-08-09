@@ -1,4 +1,5 @@
 import prisma from "../../lib/prisma";
+import { createApi } from "../../lib/api";
 
 export default async function handler(req, res) {
   const { q: value } = req.query;
@@ -13,6 +14,11 @@ async function detectKind(value) {
     const block = prisma.chainBlock.findFirst({ where: { blockNum }});
     if (!block) return;
     return "block";
+  }
+  if (value.length === 48) {
+    const api = await createApi();
+    const accountInfo = await api.query.system.account(value);
+    if (accountInfo) return "account";
   }
   const [block, extrinsic] = await Promise.all([
     prisma.chainBlock.findFirst({ where: { blockHash: value }}),
