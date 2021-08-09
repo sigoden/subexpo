@@ -21,3 +21,9 @@ body {
     margin: 0.5rem auto;
   }
 }
+
+.args {
+  border: 10px solid #f2f5f9;
+  background: #f3f5f9;
+  overflow: auto;
+}

@@ -80,7 +80,7 @@ export default function SearchForm({ kind }) {
           <RangePicker disabledDate={disableDate} style={{width: "100%"}} />
         </Form.Item>
         <Form.Item label="Account" name="accountId">
-          <Input />
+          <Input placeholder="Search by AccountId" />
         </Form.Item>
         <Form.Item style={{ marginLeft: "auto"}}>
           <Button onClick={submit}>Filter</Button>

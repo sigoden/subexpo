@@ -52,7 +52,7 @@ export default function EventTable(props) {
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
       expandIcon={ExpandIcon}
       expandable={{
-        expandedRowRender: record => <Args args={record.data} />
+        expandedRowRender: record => <div className="args"><Args args={record.data} /></div>
       }}
       {...props} 
     />

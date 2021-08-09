@@ -1,31 +1,31 @@
-.container {
-  border: 10px solid #f2f5f9;
-  background: #f3f5f9;
-}
-
 .table {
+  display: table;
   border: 1px solid #e7eaf3;
   background: white;
+  border-collapse: collapse;
 }
 
 .item {
+  display: table-row;
   font-size: 0.875rem;
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  border-bottom: 1px solid #e7eaf3;
-}
-
-.item:last-child {
-  border-bottom: none
+  border: 1px solid #e7eaf3;
 }
 
 .itemName {
-  padding: 1rem 0.5rem;
+  display: table-cell;
+  border: 1px solid #e7eaf3;
+  text-align: center;
+  vertical-align: middle;
+  word-break: keep-all;
+  padding: 0.5rem;
 }
 
 .itemValue {
-  padding: 1rem 0.5rem;
+  display: table-cell;
+  min-width: 200px;
+  border: 1px solid #e7eaf3;
+  vertical-align: middle;
+  padding: 0.5rem;
   word-break: break-all;
   width: 100%;
 }

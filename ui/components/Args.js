@@ -1,25 +1,23 @@
-import { Row, Col  } from "antd";
+import { Row, Col } from "antd";
 import Link from "next/link";
 import styles from "./Args.module.css";
 import Balance from "./Balance";
 
 export default function Args({ args }) {
   return (
-    <div className={styles.container}>
-      <div className={styles.table}>
-        {args.map((arg, index) => (
-          <Row key={index} className={styles.item}>
-            <Col md={4} className={styles.itemName}>
-              <div>
-                {arg.name || arg.type}
-              </div>
-            </Col>
-            <Col className={styles.itemValue}>
-              <ArgValue type={arg.type} value={arg.value} />
-            </Col>
-          </Row>
-        ))}
-      </div>
+    <div className={styles.table}>
+      {args.map((arg, index) => (
+        <div key={index} className={styles.item}>
+          <div md={4} className={styles.itemName}>
+            <div>
+              {arg.name || arg.type}
+            </div>
+          </div>
+          <div className={styles.itemValue}>
+            <ArgValue type={arg.type} value={arg.value} />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

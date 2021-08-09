@@ -1,4 +1,4 @@
-import { Col, Row } from "antd";
+import { Col, Row, Grid } from "antd";
 import Link from "next/link";
 import { formatTimeUtc } from "../lib/utils";
 import Args from "./Args";
@@ -79,7 +79,7 @@ const items  = [
   {
     title: "Parameters",
     show: () => true,
-    render: extrinsic => <Args args={extrinsic.args}/>,
+    render: extrinsic => <div className="args"><Args args={extrinsic.args}/></div>,
   },
   {
     title: "Signature",
@@ -90,11 +90,12 @@ const items  = [
 ];
 
 export default function ExtrinsicInfo({ extrinsic }) {
+  const {xs} = Grid.useBreakpoint();
   const filterdItems = items.filter(v => v.show(extrinsic));
   return (
     <div className={styles.container}>
       {filterdItems.map(({title, render, cls}) => (
-        <Row className={styles.item} key={title}>
+        <Row className={xs ? styles.itemXs : styles.item} key={title}>
           <Col className={styles.itemLabel} xs={24} md={4}>{title}</Col>
           <Col className={cls || styles.itemValue} xs={24}>
             {render(extrinsic)}
