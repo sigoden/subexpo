@@ -95,8 +95,8 @@ export default function ExtrinsicInfo({ extrinsic }) {
     <div className={styles.container}>
       {filterdItems.map(({title, render, cls}) => (
         <Row className={styles.item} key={title}>
-          <Col className={styles.itemLabel} md={4}>{title}</Col>
-          <Col className={cls || styles.itemValue}>
+          <Col className={styles.itemLabel} xs={24} md={4}>{title}</Col>
+          <Col className={cls || styles.itemValue} xs={24}>
             {render(extrinsic)}
           </Col>
         </Row>

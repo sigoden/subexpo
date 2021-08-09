@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { Form, Cascader, Input,  DatePicker, Button } from "antd";
+import { Form, Cascader, Input, Grid,  DatePicker, Button } from "antd";
 import { useRequest } from "@umijs/hooks";
 import { useRouter } from "next/router";
 import moment from "moment";
@@ -7,6 +7,7 @@ import camelCase from "camelcase";
 import styles from "./SearchForm.module.css";
 
 const { RangePicker } = DatePicker;
+const { useBreakpoint } = Grid;
 
 function getModules(modules, type) {
   if (!Array.isArray(modules)) return [];
@@ -35,6 +36,7 @@ function getModules(modules, type) {
 
 export default function SearchForm({ kind }) {
   const [form] = Form.useForm();
+  const screens = useBreakpoint();
   const { data } = useRequest(
     { url: "/api/state" }, 
     { cacheKey: "state" }
@@ -69,22 +71,20 @@ export default function SearchForm({ kind }) {
     <div className={styles.root}>
       <Form
         form={form}
-        layout="inline"
+        layout={screens.xs ? "vertical" : "inline"}
       >
         <Form.Item label="Module" name="module">
-          <Cascader options={modules}  style={{width: 250}} />
+          <Cascader options={modules}  style={{width: "100%"}} />
         </Form.Item>
         <Form.Item label="Date" name="date">
-          <RangePicker disabledDate={disableDate} />
+          <RangePicker disabledDate={disableDate} style={{width: "100%"}} />
         </Form.Item>
         <Form.Item label="Account" name="accountId">
           <Input />
         </Form.Item>
         <Form.Item style={{ marginLeft: "auto"}}>
           <Button onClick={submit}>Filter</Button>
-        </Form.Item>
-        <Form.Item style={{ marginRight: 0 }}>
-          <Button onClick={reset}>Reset</Button>
+          <Button style={{marginLeft: "0.25rem"}} onClick={reset}>Reset</Button>
         </Form.Item>
       </Form>
     </div>

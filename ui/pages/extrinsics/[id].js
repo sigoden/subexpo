@@ -27,10 +27,10 @@ export default function ExtrinsicPage({ events, extrinsic }) {
   return (
     <div>
       <Row>
-        <Col className={styles.extrinsicId}>
+        <Col xs={24} className={styles.extrinsicId}>
           <div className={styles.extrinsicIdValue}>Extrinsic#{extrinsicId}</div>
         </Col>
-        <Col className={styles.wrapSearchBar}>
+        <Col xs={24} className="wrapSearchBar">
           <SearchBar />
         </Col>
       </Row>

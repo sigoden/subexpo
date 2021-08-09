@@ -1,3 +1,23 @@
 body {
     background-color: #f0f2f5 !important;
 }
+
+.ant-table {
+    overflow-x: auto;
+    background: white;
+}
+
+.ant-table tr > td {
+    white-space: nowrap;
+}
+
+.wrapSearchBar {
+  margin-left: auto;
+}
+
+@media (min-width: 576px) {  
+  .wrapSearchBar {
+    width: 100%;
+    margin: 0.5rem auto;
+  }
+}

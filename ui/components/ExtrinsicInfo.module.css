@@ -12,7 +12,6 @@
     font-size: 14px;
     color: black;
     display: flex;
-    flex-wrap: nowrap;
     align-items: center;
     border-bottom: 1px solid #e7eaf3;
 }
@@ -29,6 +28,7 @@
 
 .itemValue {
   padding-left: 10px;
+  word-break: break-all;
   flex: auto;
 }
 

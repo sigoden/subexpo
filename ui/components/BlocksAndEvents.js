@@ -69,7 +69,7 @@ export default function BlocksAndEvents({ blocks, events }) {
   }, [data]);
   return (
     <Row>
-      <Col span={12} className={styles.panel}>
+      <Col xs={24} md={12} className={styles.panel}>
         <Row align="middle" justify="space-between" className={styles.panelHeader}>
           <Col className={styles.panelTitle}>
             Recent Blocks
@@ -86,7 +86,7 @@ export default function BlocksAndEvents({ blocks, events }) {
           ))}
         </Row>
       </Col>
-      <Col span={12} className={styles.panel}>
+      <Col xs={24} md={12} className={styles.panel}>
         <Row align="middle" justify="space-between" className={styles.panelHeader}>
           <Col className={styles.panelTitle}>
             Recent Events

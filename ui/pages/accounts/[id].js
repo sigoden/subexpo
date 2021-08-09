@@ -1,4 +1,4 @@
-import { Button, Col, Row, Tabs } from "antd";
+import { Button, Col, Row, Tabs, Grid } from "antd";
 import { useRouter } from "next/router";
 
 import prisma from "../../lib/prisma";
@@ -51,10 +51,10 @@ export default function AccountPage(account) {
   return (
     <div>
       <Row>
-        <Col className={styles.accountId}>
+        <Col xs={24} className={styles.accountId}>
           <div className={styles.accountIdValue}>{id}</div>
         </Col>
-        <Col className={styles.wrapSearchBar}>
+        <Col xs={24} className="wrapSearchBar">
           <SearchBar />
         </Col>
       </Row>

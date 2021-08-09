@@ -1,5 +1,5 @@
 import React from "react";
-import { Layout, Row, Col, Menu } from "antd";
+import { Layout, Menu, Grid } from "antd";
 const { Header, Content } = Layout;
 import Link from "next/link";
 import SearchBar from "./SearchBar";
@@ -12,34 +12,37 @@ const navs = [
   ["Events", "/events"],
 ];
 
-export default function MainLayout({ children, noSearch }) {
+function Navs() {
   const router = useRouter();
   return (
+    <Menu 
+      className={styles.navs}
+      theme="dark"
+      mode="horizontal"
+      selectedKeys={navs.filter(v => router.pathname.startsWith(v[1])).map(v => v[1])}
+    >
+      {navs.map(([title, href]) => {
+          return (
+            <Menu.Item key={href}>
+              <Link href={href}>{title}</Link>
+            </Menu.Item>
+          );
+      })}
+    </Menu>
+  );
+}
+
+export default function MainLayout({ children, noSearch }) {
+  const { xs } = Grid.useBreakpoint();
+  return (
     <Layout>
-      <Header>
-        <Row className={styles.header}>
-          <Col>
-            <div className={styles.logo}>
-              <Link href="/">SUBEXPO</Link>
-            </div>
-          </Col>
-          <Col style={{ marginLeft: 'auto' }}>
-            <Menu 
-              className={styles.navs}
-              theme="dark"
-              mode="horizontal"
-              selectedKeys={navs.filter(v => router.pathname.startsWith(v[1])).map(v => v[1])}
-            >
-              {navs.map(([title, href]) => {
-                  return (
-                    <Menu.Item key={href}>
-                      <Link href={href}>{title}</Link>
-                    </Menu.Item>
-                  );
-              })}
-            </Menu>
-          </Col>
-        </Row>
+      <Header className={xs ? styles.wrapHeaderXs : styles.wrapHeader}>
+        <div className={styles.header}>
+          <div className={styles.logo}>
+            <Link href="/">SUBEXPO</Link>
+          </div>
+          <Navs />
+        </div>
       </Header>
       <Content className={styles.wrapContent}>
         { noSearch ? <div /> : <SearchBar /> }

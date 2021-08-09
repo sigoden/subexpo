@@ -46,7 +46,7 @@ export default function BlockPage({ block, events, extrinsics, logs }) {
           <div className={styles.blockNavValue}>Block#{block.blockNum}</div>
           <RightOutlined className={styles.blockNavBtn} onClick={() => offsetBlock(1)}  />
         </Col>
-        <Col className={styles.wrapSearchBar}>
+        <Col xs={24} className="wrapSearchBar">
           <SearchBar />
         </Col>
       </Row>

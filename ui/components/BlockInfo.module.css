@@ -31,4 +31,5 @@
 .itemValue {
   padding-left: 10px;
   flex: auto;
+  word-break: break-all;
 }

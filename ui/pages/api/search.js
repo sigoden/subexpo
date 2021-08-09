@@ -8,11 +8,12 @@ export default async function handler(req, res) {
 }
 
 async function detectKind(value) {
-  if (typeof value !== "string") return
+  if (typeof value !== "string") return "";
+  if (value === "") return "";
   const blockNum = parseInt(value);
   if (blockNum > -1) {
     const block = prisma.chainBlock.findFirst({ where: { blockNum }});
-    if (!block) return;
+    if (!block) return "";
     return "block";
   }
   if (value.length === 48) {
@@ -30,4 +31,5 @@ async function detectKind(value) {
   if (extrinsic) {
     return "extrinsic"
   }
+  return "";
 }

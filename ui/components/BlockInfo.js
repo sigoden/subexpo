@@ -62,8 +62,8 @@ export default function BlockInfo({ block }) {
     <div className={styles.container}>
       {items.map(({title, render}) => (
         <Row className={styles.item} key={title}>
-          <Col className={styles.itemLabel} md={4}>{title}</Col>
-          <Col className={styles.itemValue}>
+          <Col className={styles.itemLabel} xs={24} md={4}>{title}</Col>
+          <Col className={styles.itemValue} xs={24}>
             {render(block)}
           </Col>
         </Row>
