@@ -71,7 +71,7 @@ export default function SearchForm({ kind }) {
     <div className={styles.root}>
       <Form
         form={form}
-        layout={screens.xs ? "vertical" : "inline"}
+        layout={screens.lg ? "inline" : "vertical"}
       >
         <Form.Item label="Module" name="module">
           <Cascader options={modules}  style={{width: "100%"}} />
@@ -82,7 +82,7 @@ export default function SearchForm({ kind }) {
         <Form.Item label="Account" name="accountId">
           <Input placeholder="Search by AccountId" />
         </Form.Item>
-        <Form.Item style={{ marginLeft: "auto"}}>
+        <Form.Item style={{ marginLeft: "auto", marginRight: 0 }}>
           <Button onClick={submit}>Filter</Button>
           <Button style={{marginLeft: "0.25rem"}} onClick={reset}>Reset</Button>
         </Form.Item>
