@@ -51,6 +51,7 @@ model ChainExtrinsic {
   nonce           Int
   extrinsicHash   String       @unique
   isSigned        Boolean
+  kind            Int          @db.SmallInt @default(0)
   success         Boolean
   error           Json?
   fee             String

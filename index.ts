@@ -226,6 +226,7 @@ async function saveBlock(header: Header, finalized: boolean) {
       calls: Array.from(calls).map(v => ";" + v).join(""),
       error: extrinsicError, 
       args: exArgs as any,
+      kind: getExtrinsicKind(section, method),
       accountId: isSigned ? ex.signer.toString() : "",
       signature: isSigned ? ex.signature.toHex() : "",
       nonce: ex?.nonce.toNumber(),
@@ -280,6 +281,13 @@ async function saveBlock(header: Header, finalized: boolean) {
       console.log(` CreateBlock : ${blockNum}, ${err.message}`);
     }
   }
+}
+
+function getExtrinsicKind(section: string, method: string) {
+  if (section === "balances" && ["transfer", "transferKeepAlive", "transferAll"].indexOf(method) > -1) {
+    return 1;
+  }
+  return 0;
 }
 
 interface ParsedArg {
