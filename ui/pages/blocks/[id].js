@@ -46,7 +46,7 @@ export default function BlockPage({ block, events, extrinsics, logs }) {
           <div className={styles.blockNavValue}>Block#{block.blockNum}</div>
           <RightOutlined className={styles.blockNavBtn} onClick={() => offsetBlock(1)}  />
         </Col>
-        <Col xs={24} className="wrapSearchBar">
+        <Col className="wrapSearchBar">
           <SearchBar />
         </Col>
       </Row>
@@ -54,7 +54,7 @@ export default function BlockPage({ block, events, extrinsics, logs }) {
       {extrinsics.length > 0 && (
         <Tabs className={styles.tabs} defaultActiveKey={router.query.tab || "extrinsics"}>
           <TabPane tab={`Extrinsics(${extrinsics.length})`} key="extrinsics">
-            <ExtrinsicTable dataSource={extrinsics} inBlock pagination={false} />
+            <ExtrinsicTable dataSource={extrinsics} noColumns={["blockNum", "blockAt"]} pagination={false} />
           </TabPane>
           {events.length > 0 &&
             <TabPane tab={`Events(${events.length})`} key="events">

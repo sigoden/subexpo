@@ -15,7 +15,7 @@ body {
   margin-left: auto;
 }
 
-@media (min-width: 576px) {  
+@media (max-width: 768px) {  
   .wrapSearchBar {
     width: 100%;
     margin: 0.5rem auto;

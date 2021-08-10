@@ -46,9 +46,7 @@ const columns = [
 export default function ExtrinsicTable (props) {
   return (
     <Table 
-      columns={props.inBlock ?
-        columns.filter(v => v.dataIndex !== "blockNum" && v.dataIndex !== "blockAt") :
-        columns}
+      columns={columns.filter(v => (props.noColumns || []).indexOf(v.dataIndex) === -1)}
       rowKey="extrinsicId" 
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
       expandIcon={ExpandIcon}

@@ -51,10 +51,10 @@ export default function AccountPage(account) {
   return (
     <div>
       <Row>
-        <Col xs={24} className={styles.accountId}>
+        <Col className={styles.accountId}>
           <div className={styles.accountIdValue}>{id}</div>
         </Col>
-        <Col xs={24} className="wrapSearchBar">
+        <Col className="wrapSearchBar">
           <SearchBar />
         </Col>
       </Row>
@@ -66,7 +66,7 @@ export default function AccountPage(account) {
           onChange={onTabChange}
           tabBarExtraContent={<Button onClick={onViewAll}>View All</Button>}>
           <TabPane tab={`Extrinsics(${extrinsics.length})`} key="extrinsics">
-            <ExtrinsicTable dataSource={extrinsics} inBlock pagination={false} />
+            <ExtrinsicTable dataSource={extrinsics} noColumns={["blockNum", "extrinsicHash"]} pagination={false} />
           </TabPane>
         </Tabs>
       }
