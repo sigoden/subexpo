@@ -6,6 +6,7 @@ import { createApi } from "../../lib/api";
 import MainLayout from "../../components/MainLayout";
 import SearchBar from "../../components/SearchBar";
 import ExtrinsicTable from "../../components/ExtrinsicTable";
+import TransferTable from "../../components/TransferTable";
 import AccountInfo from "../../components/AccountInfo";
 
 import styles from "./[id].module.css";
@@ -17,11 +18,34 @@ export async function getServerSideProps({ params }) {
   const api = await createApi();
   const accountInfo = await api.query.system.account(id);
   if (accountInfo) {
-    const extrinsics = await prisma.chainExtrinsic.findMany({
-      where: { accountId: id },
-      orderBy: { blockNum: "desc" },
-      take: 10,
-    })
+    const [extrinsics, extrinsicsCount, transfers, transfersCount] = await Promise.all([
+      await prisma.chainExtrinsic.findMany({
+        where: { accountId: id },
+        orderBy: { blockNum: "desc" },
+        take: 10,
+      }),
+      await prisma.chainExtrinsic.count({
+        where: { accountId: id },
+      }),
+      await prisma.chainTransfer.findMany({
+        where: {
+          OR: [
+            { from: id },
+            { to: id },
+          ]
+        },
+        orderBy: { blockNum: "desc" },
+        take: 10,
+      }),
+      await prisma.chainTransfer.count({
+        where: {
+          OR: [
+            { from: id },
+            { to: id },
+          ]
+        },
+      }),
+    ])
     return {
       props: {
         id,
@@ -29,6 +53,9 @@ export async function getServerSideProps({ params }) {
         reserved: accountInfo.data.reserved.toString(),
         nonce: accountInfo.nonce.toNumber(),
         extrinsics,
+        extrinsicsCount,
+        transfers,
+        transfersCount,
       }
     }
   }
@@ -38,15 +65,13 @@ export async function getServerSideProps({ params }) {
 
 export default function AccountPage(account) {
   const router = useRouter();
-  const {id, extrinsics} = account;
+  const {id, extrinsics, extrinsicsCount, transfers, transfersCount} = account;
   const [tabKey, setTabKey] = useState("extrinsics");
   const onTabChange = useCallback(key => {
     setTabKey(key);
   }, [setTabKey])
   const onViewAll = useCallback(() => {
-    if (tabKey === "extrinsics") {
-      router.push(`/extrinsics?accountId=${id}`);
-    }
+    router.push(`/${tabKey}?accountId=${id}`);
   }, [tabKey, router, id]);
   return (
     <div>
@@ -59,17 +84,21 @@ export default function AccountPage(account) {
         </Col>
       </Row>
       <AccountInfo account={account} />
-      {extrinsics.length > 0 &&
-        <Tabs 
-          className={styles.tabs}
-          defaultActiveKey={tabKey}
-          onChange={onTabChange}
-          tabBarExtraContent={<Button onClick={onViewAll}>View All</Button>}>
-          <TabPane tab={`Extrinsics(${extrinsics.length})`} key="extrinsics">
-            <ExtrinsicTable dataSource={extrinsics} noColumns={["blockNum", "extrinsicHash"]} pagination={false} />
-          </TabPane>
-        </Tabs>
-      }
+      {extrinsicsCount + transfersCount > 0 && (
+      <Tabs 
+        className={styles.tabs}
+        defaultActiveKey={tabKey}
+        onChange={onTabChange}
+        tabBarExtraContent={<Button onClick={onViewAll}>View All</Button>}>
+        {extrinsicsCount > 0 && (
+        <TabPane tab={`Extrinsics(${extrinsicsCount})`} key="extrinsics">
+          <ExtrinsicTable dataSource={extrinsics} noColumns={["blockNum", "extrinsicHash"]} pagination={false} />
+        </TabPane>)}
+        {transfersCount > 0 && (
+        <TabPane tab={`Transfers(${transfersCount})`} key="transfers">
+          <TransferTable dataSource={transfers} accountId={id} pagination={false} />
+        </TabPane>)}
+      </Tabs>)}
     </div>
   )
 }

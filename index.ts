@@ -1,4 +1,4 @@
-import { PrismaClient, ChainEvent, ChainVersion } from '@prisma/client'
+import { PrismaClient, ChainEvent, ChainVersion, ChainTransfer } from '@prisma/client'
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Call, CodecHash, FunctionArgumentMetadataV9 } from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
@@ -18,9 +18,7 @@ async function main() {
 }
 
 async function startChain() {
-  const provider = new WsProvider(process.env.ENDPOINT);
-  api = await ApiPromise.create({ provider, types })
-  await api.isReady;
+  await createApi();
   const chainVersions = await prisma.chainVersion.findMany();
   chainVersions.forEach(chainVersion => {
     chainSpecVersions.set(chainVersion.specVersion, chainVersion);
@@ -32,6 +30,12 @@ async function startChain() {
     isSyncing = await syncChain();
   }
   listenChain();
+}
+
+async function createApi() {
+  const provider = new WsProvider(process.env.ENDPOINT);
+  api = await ApiPromise.create({ provider, types })
+  await api.isReady;
 }
 
 async function syncChain() {
@@ -133,6 +137,7 @@ async function saveBlock(header: Header, finalized: boolean) {
         prisma.chainExtrinsic.deleteMany({ where: { blockNum }}),
         prisma.chainEvent.deleteMany({ where: { blockNum }}),
         prisma.chainLog.deleteMany({ where: { blockNum }}),
+        prisma.chainTransfer.deleteMany({ where: { blockNum }}),
       ]);
       isNew = false;
     }
@@ -157,6 +162,7 @@ async function saveBlock(header: Header, finalized: boolean) {
     chainVersion = await addSpecVersion(header.hash, blockSpecVersion);
   }
   const events: ChainEvent[] = [];
+  const transfers: ChainTransfer[] = [];
   let extrinsicError: any;
   let extrinsicsCount = signedBlock.block.extrinsics.length;
   const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
@@ -214,9 +220,25 @@ async function saveBlock(header: Header, finalized: boolean) {
         data: eventData as any,
       });
     });
-
+    const extrinsicId = `${blockNum}-${formatIdx(exIndex, extrinsicsCount)}`;
+    const extrinsicKind = getExtrinsicKind(section, method);
+    if (extrinsicKind === 1) {
+      transfers.push({
+        extrinsicId,
+        blockNum,
+        blockAt,
+        from: ex.signer.toString(),
+        to: exArgs[0].value,
+        amount: exArgs[1].value,
+        section,
+        method,
+        success,
+        nonce: ex?.nonce.toNumber(),
+      });
+    }
+    
     return {
-      extrinsicId: `${blockNum}-${formatIdx(exIndex, extrinsicsCount)}`,
+      extrinsicId,
       blockNum,
       blockAt,
       extrinsicLength: ex.length,
@@ -226,7 +248,7 @@ async function saveBlock(header: Header, finalized: boolean) {
       calls: Array.from(calls).map(v => ";" + v).join(""),
       error: extrinsicError, 
       args: exArgs as any,
-      kind: getExtrinsicKind(section, method),
+      kind: extrinsicKind,
       accountId: isSigned ? ex.signer.toString() : "",
       signature: isSigned ? ex.signature.toHex() : "",
       nonce: ex?.nonce.toNumber(),
@@ -273,6 +295,9 @@ async function saveBlock(header: Header, finalized: boolean) {
       prisma.chainEvent.createMany({
         data: events,
       }),
+      prisma.chainTransfer.createMany({
+        data: transfers,
+      }),
     ]);
     console.log(`${isNew ? " CreateBlock "  : " UpdateBlock " }: ${blockNum} ${blockHash}`);
   } catch (err) {
@@ -283,8 +308,14 @@ async function saveBlock(header: Header, finalized: boolean) {
   }
 }
 
+async function testBlock(blockNum: number) {
+  await createApi();
+  const header = await getBlockHeader(blockNum);
+  await saveBlock(header, true);
+}
+
 function getExtrinsicKind(section: string, method: string) {
-  if (section === "balances" && ["transfer", "transferKeepAlive", "transferAll"].indexOf(method) > -1) {
+  if (section === "balances" && ["transfer", "transferKeepAlive"].indexOf(method) > -1) {
     return 1;
   }
   return 0;

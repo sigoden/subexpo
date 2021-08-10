@@ -35,10 +35,12 @@ model ChainEvent {
   accountId      String?
   ChainBlock     ChainBlock?     @relation(fields: [blockNum], references: [blockNum])
   ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId])
+  @@index([accountId])
+  @@index([section, method])
 }
 
 model ChainExtrinsic {
-  extrinsicId     String       @id
+  extrinsicId     String         @id
   blockNum        Int
   blockAt         Int
   method          String
@@ -49,17 +51,20 @@ model ChainExtrinsic {
   accountId       String?
   signature       String?
   nonce           Int
-  extrinsicHash   String       @unique
+  extrinsicHash   String         @unique
   isSigned        Boolean
-  kind            Int          @db.SmallInt @default(0)
+  kind            Int            @default(0) @db.SmallInt
   success         Boolean
   error           Json?
   fee             String
   tip             String
   versionInfo     Int
   extrinsicLength Int
-  finalized       Boolean      @default(false)
-  ChainBlock      ChainBlock?  @relation(fields: [blockNum], references: [blockNum])
+  finalized       Boolean        @default(false)
+  ChainBlock      ChainBlock?    @relation(fields: [blockNum], references: [blockNum])
+  transfer        ChainTransfer?
+  @@index([accountId])
+  @@index([section, method])
 }
 
 model ChainLog {
@@ -75,4 +80,21 @@ model ChainVersion {
   modules       Json
   mergedModules Json
   rawData       Json
+}
+
+model ChainTransfer {
+  extrinsicId    String          @id
+  blockNum       Int
+  blockAt        Int
+  from           String
+  to             String
+  amount         String
+  section        String
+  method         String
+  success        Boolean
+  nonce          Int
+  ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId])
+  @@index([from])
+  @@index([to])
+  @@index([blockNum])
 }
