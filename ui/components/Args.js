@@ -2,6 +2,9 @@ import { Row, Col } from "antd";
 import Link from "next/link";
 import styles from "./Args.module.css";
 import Balance from "./Balance";
+import dynamic from "next/dynamic";
+
+const LargeBytes = dynamic(() => import("./LargeBytes"), { ssr: false });
 
 export default function Args({ args }) {
   return (
@@ -68,10 +71,12 @@ function ArgValue({ type, value }) {
         ))}
       </div>
     )
-  } else if (type === "Balance" || type === "Compact<Balance>") {
+  } else if (type === "Balance" || type === "Compact<Balance>" || type === "BalanceOf") {
     return <Balance balance={value} />
   } else if (type === "AccountId" || type === "LookupSource") {
     return <Link href={`/accounts/${value}`}><a>{value}</a></Link>;
+  } else if (type === "Bytes" && value.length > 262144) {
+    return <LargeBytes bytes={value}/>
   }
   return <div>{value}</div>;
 }

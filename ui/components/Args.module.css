@@ -26,6 +26,7 @@
   border: 1px solid #e7eaf3;
   vertical-align: middle;
   padding: 0.5rem;
+  white-space: normal;
   word-break: break-all;
   width: 100%;
 }
