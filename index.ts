@@ -145,7 +145,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
   let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum }});
   if (chainBlock) {
     if (chainBlock.blockHash === blockHash ) {
-      if (!finalized && !chainBlock.finalized) {
+      if (finalized && !chainBlock.finalized) {
         await prisma.$transaction([
           prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }}),
           prisma.chainExtrinsic.updateMany({ where: { blockNum }, data: { finalized: true }}),

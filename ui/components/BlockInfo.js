@@ -11,6 +11,7 @@ const items  = [
   {
     title: "TimeStamp",
     render: block => formatTimeUtc(block.blockAt * 1000),
+    when: block => block.blockNum > 0,
   },
   {
     title: "Status",
@@ -45,10 +46,12 @@ const items  = [
         <CopyClipboard text={block.validator} />
       </>
     ),
+    when: block => block.validator
   },
   {
     title: "BlockTime",
-    render: block => <TimeAgo time={block.blockAt} />
+    render: block => <TimeAgo time={block.blockAt} />,
+    when: block => block.blockNum > 0,
   },
   {
     title: "Spec Version",
@@ -60,7 +63,7 @@ const items  = [
 export default function BlockInfo({ block }) {
   return (
     <div className={styles.container}>
-      {items.map(({title, render}) => (
+      {items.filter(({when}) => typeof when === "undefined" || when(block)).map(({title, render }) => (
         <Row className={styles.item} key={title}>
           <Col className={styles.itemLabel} xs={24} sm={4}>{title}</Col>
           <Col className={styles.itemValue} xs={24} sm={20}>
