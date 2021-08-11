@@ -42,11 +42,8 @@ async function syncChain() {
   const finalizedBlockNum = await getFinalizedBlockNum();
   const lastBlockNum = await getSavedBlockNum();
   const isSyncing = finalizedBlockNum - lastBlockNum > 1;
-  for (let blockNum = lastBlockNum; blockNum < finalizedBlockNum; blockNum++) {
-    const header = await getBlockHeader(blockNum);
-    await saveBlock(header, true);
-    syncBlockNum = blockNum;
-  }
+  const toSyncBlockNums = Array.from(Array(finalizedBlockNum - lastBlockNum)).map((_, i) => lastBlockNum + i);
+  syncBlockNum = await batchSaveBlockNums(toSyncBlockNums);
   return isSyncing;
 }
 
@@ -67,12 +64,30 @@ async function fixMissBlocks() {
       blockNums.add(block.blockNum);
     })
   }
-  for (let i = 1; i <= lastBlockNum; i++) {
-    if (!blockNums.has(i)) {
-      const header = await getBlockHeader(i);
-      await saveBlock(header, true);
+  const toSyncBlockNums = Array.from(Array(lastBlockNum + 1)).filter((_, i) => !blockNums.has(i));
+  await batchSaveBlockNums(toSyncBlockNums);
+}
+
+async function batchSaveBlockNums(blockNums: number[]) {
+  let maxBlockNum = 0;
+  const concurrency = parseInt(process.env.CONCURRENCY || "") || 16;
+  const splitBlockNums: number[][] = Array.from(Array(concurrency)).map(_ => []);
+  for (let i = 0; i < Math.ceil(blockNums.length / concurrency); i++) {
+    for (let j = 0; j < concurrency; j++) {
+      const blockNum = blockNums[i * concurrency + j];
+      if (typeof blockNum !== "undefined")  {
+        splitBlockNums[j].push(blockNum);
+      }
     }
   }
+  await Promise.all(splitBlockNums.map(async chunks => {
+    for (const i of chunks) {
+      const header = await getBlockHeader(i);
+      await saveBlock(header, SaveBlockMode.Sync);
+      if (i > maxBlockNum) maxBlockNum = i;
+    }
+  }));
+  return maxBlockNum;
 }
 
 async function runQueue() {
@@ -85,9 +100,9 @@ async function runQueue() {
     const blockNum = header.number.toNumber();
     for (let i = syncBlockNum; i < blockNum - 1; i++) {
       const header = await getBlockHeader(i);
-      await saveBlock(header, true);
+      await saveBlock(header, SaveBlockMode.Finalize);
     }
-    await saveBlock(header, true);
+    await saveBlock(header, SaveBlockMode.Finalize);
     syncBlockNum = blockNum;
   }
 }
@@ -96,7 +111,7 @@ async function listenChain() {
   await api.rpc.chain.subscribeFinalizedHeads(header => {
     queue.enqueue(header, header.number.toNumber())
   });
-  await api.rpc.chain.subscribeNewHeads(header => saveBlock(header, false));
+  await api.rpc.chain.subscribeNewHeads(header => saveBlock(header, SaveBlockMode.New));
 }
 
 async function getFinalizedBlockNum() {
@@ -116,14 +131,21 @@ async function getBlockHeader(blockNum: number) {
   return header;
 }
 
-async function saveBlock(header: Header, finalized: boolean) {
+enum SaveBlockMode {
+  New,
+  Sync,
+  Finalize,
+}
+
+async function saveBlock(header: Header, mode: SaveBlockMode) {
   const blockNum = header.number.toNumber();
   const blockHash = header.hash.toHex();
   let isNew = true;
+  const finalized = mode !== SaveBlockMode.New;
   let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum }});
   if (chainBlock) {
     if (chainBlock.blockHash === blockHash ) {
-      if (finalized && !chainBlock.finalized) {
+      if (!finalized && !chainBlock.finalized) {
         await prisma.$transaction([
           prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }}),
           prisma.chainExtrinsic.updateMany({ where: { blockNum }, data: { finalized: true }}),
@@ -311,7 +333,7 @@ async function saveBlock(header: Header, finalized: boolean) {
 async function testBlock(blockNum: number) {
   await createApi();
   const header = await getBlockHeader(blockNum);
-  await saveBlock(header, true);
+  await saveBlock(header, SaveBlockMode.Sync);
 }
 
 function getExtrinsicKind(section: string, method: string) {
