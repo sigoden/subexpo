@@ -10,3 +10,4 @@ services:
       - 3306:3306 
     volumes: 
       - ./tmp/mysql:/var/lib/mysql 
+      - ./.docker/mysql.cnf:/etc/mysql/mysql.conf.d/custom.cnf

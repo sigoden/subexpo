@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     where.section = section;
     if (method) where.method = method;
   } else {
-    where.section = { not: "timestamp" };
+    where.kind = {lt: 90};
   }
   if (startDateValue) where.blockAt = { gte: startDateValue };
   if (endDateValue) {
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
         select: {
           extrinsicId: true,
           blockNum: true,
-          extrinsicHash: true,
+          accountId: true,
           blockAt: true,
           success: true,
           section: true,

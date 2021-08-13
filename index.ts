@@ -1,9 +1,10 @@
-import { PrismaClient, ChainEvent, ChainVersion, ChainTransfer } from '@prisma/client'
+import { PrismaClient, ChainEvent, ChainVersion, ChainTransfer, ChainExtrinsic } from '@prisma/client'
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Call, CodecHash, FunctionArgumentMetadataV9 } from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
 import { MaxPriorityQueue } from '@datastructures-js/priority-queue'
 import { Codec } from '@polkadot/types/types';
+import pMap from "p-map";
 const types = require("./types");
 
 const prisma = new PrismaClient()
@@ -64,29 +65,22 @@ async function fixMissBlocks() {
       blockNums.add(block.blockNum);
     })
   }
-  const toSyncBlockNums = Array.from(Array(lastBlockNum + 1)).filter((_, i) => !blockNums.has(i));
+  const toSyncBlockNums = [];
+  for (let i = 0; i <= lastBlockNum; i++) {
+    if (!blockNums.has(i)) toSyncBlockNums.push(i)
+  }
   await batchSaveBlockNums(toSyncBlockNums);
 }
 
-async function batchSaveBlockNums(blockNums: number[]) {
+async function batchSaveBlockNums(blockNums: number[]): Promise<number> {
   let maxBlockNum = 0;
-  const concurrency = parseInt(process.env.CONCURRENCY || "") || 16;
-  const splitBlockNums: number[][] = Array.from(Array(concurrency)).map(_ => []);
-  for (let i = 0; i < Math.ceil(blockNums.length / concurrency); i++) {
-    for (let j = 0; j < concurrency; j++) {
-      const blockNum = blockNums[i * concurrency + j];
-      if (typeof blockNum !== "undefined")  {
-        splitBlockNums[j].push(blockNum);
-      }
-    }
+  const concurrency = parseInt(process.env.CONCURRENCY || "") || 10;
+  const saveBlockNum = async (blockNum: number) => {
+    const header = await getBlockHeader(blockNum);
+    await saveBlock(header, SaveBlockMode.Sync);
+    maxBlockNum = Math.max(blockNum, maxBlockNum);
   }
-  await Promise.all(splitBlockNums.map(async chunks => {
-    for (const i of chunks) {
-      const header = await getBlockHeader(i);
-      await saveBlock(header, SaveBlockMode.Sync);
-      if (i > maxBlockNum) maxBlockNum = i;
-    }
-  }));
+  await pMap(blockNums, saveBlockNum, { concurrency });
   return maxBlockNum;
 }
 
@@ -142,186 +136,185 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
   const blockHash = header.hash.toHex();
   let isNew = true;
   const finalized = mode !== SaveBlockMode.New;
-  let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum }});
-  if (chainBlock) {
-    if (chainBlock.blockHash === blockHash ) {
-      if (finalized && !chainBlock.finalized) {
-        await prisma.$transaction([
-          prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }}),
-          prisma.chainExtrinsic.updateMany({ where: { blockNum }, data: { finalized: true }}),
+  try {
+    let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum }});
+    if (chainBlock) {
+      if (chainBlock.blockHash === blockHash ) {
+        if (finalized && !chainBlock.finalized) {
+          await prisma.$transaction([
+            prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }}),
+            prisma.chainExtrinsic.updateMany({ where: { blockNum }, data: { finalized: true }}),
+          ]);
+          console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
+        }
+        return;
+      } else {
+        prisma.$transaction([
+          prisma.chainBlock.delete({ where: { blockNum }}),
+          prisma.chainExtrinsic.deleteMany({ where: { blockNum }}),
+          prisma.chainEvent.deleteMany({ where: { blockNum }}),
+          prisma.chainLog.deleteMany({ where: { blockNum }}),
+          prisma.chainTransfer.deleteMany({ where: { blockNum }}),
         ]);
-        console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
+        isNew = false;
       }
-      return;
+    }
+    let blockAt = 0;
+    const [signedBlock, extHeader, records, runtimeVersion] = await Promise.all([
+      api.rpc.chain.getBlock(header.hash),
+      api.derive.chain.getHeader(header.hash),
+      api.query.system.events.at(header.hash),
+      api.rpc.state.getRuntimeVersion(header.hash),
+    ]);
+    const paymentInfos = await Promise.all(signedBlock.block.extrinsics.map(async ex => {
+      if (ex.isSigned) {
+        return api.rpc.payment.queryInfo(ex.toHex(), header.hash.toHex());
+      }
+    }));
+    const blockSpecVersion = runtimeVersion.specVersion.toNumber();
+    let chainVersion: ChainVersion;
+    if (chainSpecVersions.has(blockSpecVersion)) {
+      chainVersion = chainSpecVersions.get(blockSpecVersion) as ChainVersion;
     } else {
-      prisma.$transaction([
-        prisma.chainBlock.delete({ where: { blockNum }}),
-        prisma.chainExtrinsic.deleteMany({ where: { blockNum }}),
-        prisma.chainEvent.deleteMany({ where: { blockNum }}),
-        prisma.chainLog.deleteMany({ where: { blockNum }}),
-        prisma.chainTransfer.deleteMany({ where: { blockNum }}),
-      ]);
-      isNew = false;
+      chainVersion = await addSpecVersion(header.hash, blockSpecVersion);
     }
-  }
-  let blockAt = 0;
-  const [signedBlock, extHeader, records, runtimeVersion] = await Promise.all([
-    api.rpc.chain.getBlock(header.hash),
-    api.derive.chain.getHeader(header.hash),
-    api.query.system.events.at(header.hash),
-    api.rpc.state.getRuntimeVersion(header.hash),
-  ]);
-  const paymentInfos = await Promise.all(signedBlock.block.extrinsics.map(async ex => {
-    if (ex.isSigned) {
-      return api.rpc.payment.queryInfo(ex.toHex(), header.hash.toHex());
-    }
-  }));
-  const blockSpecVersion = runtimeVersion.specVersion.toNumber();
-  let chainVersion: ChainVersion;
-  if (chainSpecVersions.has(blockSpecVersion)) {
-    chainVersion = chainSpecVersions.get(blockSpecVersion) as ChainVersion;
-  } else {
-    chainVersion = await addSpecVersion(header.hash, blockSpecVersion);
-  }
-  const events: ChainEvent[] = [];
-  const transfers: ChainTransfer[] = [];
-  let extrinsicError: any;
-  let extrinsicsCount = signedBlock.block.extrinsics.length;
-  const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
-    const { isSigned, method: { method, section } } = ex;
+    const events: ChainEvent[] = [];
+    const transfers: ChainTransfer[] = [];
+    let extrinsicError: any;
+    let extrinsicsCount = signedBlock.block.extrinsics.length;
+    const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
+      const { isSigned, method: { method, section } } = ex;
 
-    if (section === "timestamp" && method === "set") {
-      blockAt = Math.floor(parseInt(ex.args[0].toString()) / 1000);
-    }
+      if (section === "timestamp" && method === "set") {
+        blockAt = Math.floor(parseInt(ex.args[0].toString()) / 1000);
+      }
 
-    let paymentInfo = paymentInfos[exIndex];
-    const calls = new Set<string>();
-    const exArgs = ex.method.args.map((arg, argIndex) => parseArg(calls, arg, ex.meta.args[argIndex]));
-    let exEvents = records
-      .map((record, recordIndex) => ({ record, recordIndex }))
-      .filter(({record: { phase } }) => phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(exIndex));
-    let success = true;
-    let exEventsCount = exEvents.length;
-    exEvents.forEach(({ record, recordIndex }) => {
-      const { event } = record;
-      if (api.events.system.ExtrinsicFailed.is(event)) {
-        success = false;
-        const dispatchError = event.data[0];
-        if (dispatchError.isModule) {
-          const dispatchErrorModule = event.data[0].asModule;
-          const module = (chainVersion.rawData as any).modules[dispatchErrorModule.index.toNumber()];
-          const error = module.errors[dispatchErrorModule.error.toNumber()];
-          extrinsicError = { module: module.name, name: error.name, doc: error.docs[0] };
-        } else {
-          const dispatchErrorObj =  dispatchError.toHuman() as any;
-          const name = Object.keys(dispatchErrorObj)[0];
-          const value = dispatchErrorObj[name];
-          extrinsicError = { module: "", name, value, doc: "" };
+      let paymentInfo = paymentInfos[exIndex];
+      const calls = new Set<string>();
+      const exArgs = ex.method.args.map((arg, argIndex) => parseArg(calls, arg, ex.meta.args[argIndex]));
+      let exEvents = records
+        .map((record, recordIndex) => ({ record, recordIndex }))
+        .filter(({record: { phase } }) => phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(exIndex));
+      let success = true;
+      let exEventsCount = exEvents.length;
+      exEvents.forEach(({ record, recordIndex }) => {
+        const { event } = record;
+        if (api.events.system.ExtrinsicFailed.is(event)) {
+          success = false;
+          const dispatchError = event.data[0];
+          if (dispatchError.isModule) {
+            const dispatchErrorModule = event.data[0].asModule;
+            const module = (chainVersion.rawData as any).modules[dispatchErrorModule.index.toNumber()];
+            const error = module.errors[dispatchErrorModule.error.toNumber()];
+            extrinsicError = { module: module.name, name: error.name, doc: error.docs[0] };
+          } else {
+            const dispatchErrorObj =  dispatchError.toHuman() as any;
+            const name = Object.keys(dispatchErrorObj)[0];
+            const value = dispatchErrorObj[name];
+            extrinsicError = { module: "", name, value, doc: "" };
+          }
+          return;
         }
-        return;
-      }
-      
-      const { data, section, meta, method } = event;
-      if (section === "system" && method === "ExtrinsicSuccess") {
-        return;
-      }
-      const eventData = data.map((arg, index) => {
-        return {
-          type: meta.args[index].toString(),
-          value: arg.toString(),
+        
+        const { data, section, meta, method } = event;
+        if (section === "system" && method === "ExtrinsicSuccess") {
+          return;
         }
+        const eventData = data.map((arg, index) => {
+          return {
+            type: meta.args[index].toString(),
+            value: arg.toString(),
+          }
+        });
+        events.push({
+          eventId: `${blockNum}-${formatIdx(recordIndex, exEventsCount)}`,
+          blockNum,
+          blockAt,
+          extrinsicId: `${blockNum}-${exIndex}`,
+          section,
+          method,
+          accountId: isSigned ? ex.signer.toString() : "",
+          data: eventData as any,
+        });
       });
-      events.push({
-        eventId: `${blockNum}-${formatIdx(recordIndex, exEventsCount)}`,
-        blockNum,
-        blockAt,
-        extrinsicId: `${blockNum}-${exIndex}`,
-        section,
-        method,
-        accountId: isSigned ? ex.signer.toString() : "",
-        data: eventData as any,
-      });
-    });
-    const extrinsicId = `${blockNum}-${formatIdx(exIndex, extrinsicsCount)}`;
-    const extrinsicKind = getExtrinsicKind(section, method);
-    if (extrinsicKind === 1) {
-      transfers.push({
+      const extrinsicId = `${blockNum}-${formatIdx(exIndex, extrinsicsCount)}`;
+      const extrinsicKind = getExtrinsicKind(section, method, isSigned);
+      if (extrinsicKind === 1) {
+        transfers.push({
+          extrinsicId,
+          blockNum,
+          blockAt,
+          from: ex.signer.toString(),
+          to: exArgs[0].value,
+          amount: exArgs[1].value,
+          section,
+          method,
+          success,
+          nonce: ex?.nonce.toNumber(),
+        });
+      }
+      return {
         extrinsicId,
         blockNum,
         blockAt,
-        from: ex.signer.toString(),
-        to: exArgs[0].value,
-        amount: exArgs[1].value,
-        section,
+        extrinsicLength: ex.length,
+        versionInfo: ex.version,
         method,
-        success,
+        section,
+        calls: Array.from(calls).map(v => ";" + v).join(""),
+        error: extrinsicError, 
+        args: exArgs as any,
+        kind: extrinsicKind,
+        accountId: isSigned ? ex.signer.toString() : "",
+        signature: isSigned ? ex.signature.toHex() : "",
         nonce: ex?.nonce.toNumber(),
-      });
-    }
-    
-    return {
-      extrinsicId,
+        extrinsicHash: ex.hash.toHex(),
+        isSigned,
+        success,
+        fee: (paymentInfo ? paymentInfo.partialFee.toBigInt() : 0).toString(),
+        tip: ex.tip.toBigInt().toString(),
+        finalized,
+      };
+    });
+    const logs = signedBlock.block.header.digest.logs.map((log, index) => {
+      return {
+        logId: `${blockNum}-${index}`,
+        blockNum,
+        logType: log.type,
+        data: log.value.toHuman() as any,
+      }
+    });
+    const block = {
       blockNum,
       blockAt,
-      extrinsicLength: ex.length,
-      versionInfo: ex.version,
-      method,
-      section,
-      calls: Array.from(calls).map(v => ";" + v).join(""),
-      error: extrinsicError, 
-      args: exArgs as any,
-      kind: extrinsicKind,
-      accountId: isSigned ? ex.signer.toString() : "",
-      signature: isSigned ? ex.signature.toHex() : "",
-      nonce: ex?.nonce.toNumber(),
-      extrinsicHash: ex.hash.toHex(),
-      isSigned,
-      success,
-      fee: (paymentInfo ? paymentInfo.partialFee.toBigInt() : 0).toString(),
-      tip: ex.tip.toBigInt().toString(),
+      blockHash,
+      parentHash: signedBlock.block.header.parentHash.toHex(),
+      stateRoot: signedBlock.block.header.stateRoot.toHex(),
+      extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
+      extrinsicsCount,
+      eventsCount: events.length,
+      specVersion: blockSpecVersion,
+      validator: extHeader?.author?.toString() || "",
       finalized,
-    }
-  });
-  const logs = signedBlock.block.header.digest.logs.map((log, index) => {
-    return {
-      logId: `${blockNum}-${index}`,
-      blockNum,
-      logType: log.type,
-      data: log.value.toHuman() as any,
-    }
-  });
-  const block = {
-    blockNum,
-    blockAt,
-    blockHash,
-    parentHash: signedBlock.block.header.parentHash.toHex(),
-    stateRoot: signedBlock.block.header.stateRoot.toHex(),
-    extrinsicsRoot: signedBlock.block.header.extrinsicsRoot.toHex(),
-    extrinsicsCount,
-    eventsCount: events.length,
-    specVersion: blockSpecVersion,
-    validator: extHeader?.author?.toString() || "",
-    finalized,
-  };
-  try {
-    await prisma.$transaction([
-      prisma.chainBlock.create({
-        data: block,
-      }),
-      prisma.chainExtrinsic.createMany({
-        data: extrinsics,
-      }),
-      prisma.chainLog.createMany({
-        data: logs,
-      }),
-      prisma.chainEvent.createMany({
-        data: events,
-      }),
-      prisma.chainTransfer.createMany({
-        data: transfers,
-      }),
-    ]);
-    console.log(`${isNew ? " CreateBlock "  : " UpdateBlock " }: ${blockNum} ${blockHash}`);
+    };
+      await prisma.$transaction([
+        prisma.chainBlock.create({
+          data: block,
+        }),
+        prisma.chainExtrinsic.createMany({
+          data: extrinsics,
+        }),
+        prisma.chainLog.createMany({
+          data: logs,
+        }),
+        prisma.chainEvent.createMany({
+          data: events,
+        }),
+        prisma.chainTransfer.createMany({
+          data: transfers,
+        }),
+      ]);
+      console.log(`${isNew ? " CreateBlock "  : " UpdateBlock " }: ${blockNum} ${blockHash}`);
   } catch (err) {
     if (/UniqueConstraintViolation/.test(err.message)) {
     } else {
@@ -336,11 +329,18 @@ async function testBlock(blockNum: number) {
   await saveBlock(header, SaveBlockMode.Sync);
 }
 
-function getExtrinsicKind(section: string, method: string) {
-  if (section === "balances" && ["transfer", "transferKeepAlive"].indexOf(method) > -1) {
-    return 1;
+function getExtrinsicKind(section: string, method: string, isSigned: boolean): number {
+  if (!isSigned) {
+    return 99;
   }
-  return 0;
+  const call = `${section}.${method}`;
+  switch (call) {
+    case "balances.transfer":
+    case "balances.transferKeepAlive":
+      return 1;
+    default:
+      return 0;
+  }
 }
 
 interface ParsedArg {
@@ -379,15 +379,14 @@ function parseCallArg(calls: Set<string>, call: Call): ParsedCallArg {
 }
 
 async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
-  let version = await prisma.chainVersion.findFirst({ where: { specVersion } });
-  if (version) return version;
-  const latestChainVersion = await prisma.chainVersion.findFirst({ select: { mergedModules: true }, orderBy: { specVersion: "desc" }});
+  const latestChainVersion = await prisma.chainVersion.findFirst({ orderBy: { specVersion: "desc" }});
+  if (latestChainVersion?.specVersion === specVersion) return latestChainVersion;
   const metadata = await api.rpc.state.getMetadata(blockHash);
   const wrapMetadata = metadata.toHuman() as any;
   const metadataObj = wrapMetadata.metadata[Object.keys(wrapMetadata.metadata)[0]]
   const modules = getChainModules(metadataObj) as any;
   const mergedModules = latestChainVersion ? mergeChainModule(latestChainVersion.mergedModules as any, modules) : modules;
-  version = await prisma.chainVersion.create({
+  const version = await prisma.chainVersion.create({
     data: {
       specVersion,
       modules,

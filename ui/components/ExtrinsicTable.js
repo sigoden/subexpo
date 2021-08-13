@@ -13,14 +13,9 @@ const columns = [
     render: (extrinsicId) => <Link href={`/extrinsics/${extrinsicId}`}><a>{extrinsicId}</a></Link>
   },
   {
-    title: "Block",
-    dataIndex: 'blockNum',
-    render: blockNum => <Link href={`/blocks/${blockNum}`}><a>{blockNum}</a></Link>
-  },
-  {
-    title: "Hash",
-    dataIndex: "extrinsicHash",
-    render: (hash, record) => <Link href={`/extrinsics/${record.extrinsicId}`}><a>{ecllipseHash(hash)}</a></Link>,
+    title: "Account",
+    dataIndex: "accountId",
+    render: accountId => accountId ? <Link href={`/accounts/${accountId}`}><a>{ecllipseHash(accountId)}</a></Link> : "-"
   },
   {
     title: "Time",
