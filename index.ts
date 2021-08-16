@@ -51,15 +51,16 @@ async function syncChain() {
 async function fixMissBlocks() {
   const lastBlockNum = await getSavedBlockNum();
   if (lastBlockNum === 0) return; 
-  let page = lastBlockNum / 1000 
-  if (lastBlockNum % 1000 > 0) page += 1;
+  const SIZE = 2000;
+  let page = lastBlockNum / SIZE;
+  if (lastBlockNum % SIZE > 0) page += 1;
   const blockNums = new Set();
   for (let i = 0; i < page; i++) {
     const blocks = await prisma.chainBlock.findMany({
-      where: { blockNum: { "gte": 1000 * i, "lt": 1000 * (i+1) } },
+      where: { blockNum: { "gte": SIZE * i, "lt": SIZE * (i+1) } },
       select: { blockNum: true },
       orderBy: { blockNum: "asc" },
-      take: 1000,
+      take: SIZE,
     });
     blocks.forEach(block => {
       blockNums.add(block.blockNum);
@@ -379,15 +380,21 @@ function parseCallArg(calls: Set<string>, call: Call): ParsedCallArg {
 }
 
 async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
-  const latestChainVersion = await prisma.chainVersion.findFirst({ orderBy: { specVersion: "desc" }});
-  if (latestChainVersion?.specVersion === specVersion) return latestChainVersion;
-  const metadata = await api.rpc.state.getMetadata(blockHash);
+  let version = await prisma.chainVersion.findUnique({ where: { specVersion }});
+  if (version) return version;
+  const [metadata, lastChainVersion] = await Promise.all([
+    api.rpc.state.getMetadata(blockHash),
+    prisma.chainVersion.findFirst({ orderBy: { specVersion: "desc" }}),
+  ]);
+  if (lastChainVersion?.specVersion === specVersion) return lastChainVersion;
   const wrapMetadata = metadata.toHuman() as any;
   const metadataObj = wrapMetadata.metadata[Object.keys(wrapMetadata.metadata)[0]]
   const modules = getChainModules(metadataObj) as any;
-  const mergedModules = latestChainVersion ? mergeChainModule(latestChainVersion.mergedModules as any, modules) : modules;
-  const version = await prisma.chainVersion.create({
-    data: {
+  const mergedModules = lastChainVersion ? mergeChainModule(lastChainVersion.mergedModules as any, modules) : modules;
+  version = await prisma.chainVersion.upsert({
+    where: { specVersion },
+    update: {},
+    create: {
       specVersion,
       modules,
       mergedModules,
