@@ -10,7 +10,6 @@
   display: flex;
   max-width: 1180px;
   margin: 0 auto;
-  justify-content: space-between;
 }
 
 .logo {
@@ -25,6 +24,10 @@
 
 .logoText {
   color: white;
+}
+
+.navs {
+  margin-left: auto;
 }
 
 .wrapContent {
