@@ -28,6 +28,7 @@
 
 .navs {
   margin-left: auto;
+  min-width: 256px;
 }
 
 .wrapContent {
