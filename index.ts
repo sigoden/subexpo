@@ -42,6 +42,10 @@ async function createApi() {
 async function syncChain() {
   const finalizedBlockNum = await getFinalizedBlockNum();
   const lastBlockNum = await getSavedBlockNum();
+  if (lastBlockNum > finalizedBlockNum) {
+    console.log("Maybe need clear db?");
+    process.exit(1);
+  }
   const isSyncing = finalizedBlockNum - lastBlockNum > 1;
   const toSyncBlockNums = Array.from(Array(finalizedBlockNum - lastBlockNum)).map((_, i) => lastBlockNum + i);
   syncBlockNum = await batchSaveBlockNums(toSyncBlockNums);
