@@ -1,11 +1,10 @@
-import { PrismaClient, ChainEvent, ChainVersion, ChainTransfer, ChainExtrinsic } from '@prisma/client'
+import { PrismaClient, ChainEvent, ChainVersion, ChainTransfer } from '@prisma/client'
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Call, CodecHash, FunctionArgumentMetadataV9 } from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
-import { MaxPriorityQueue } from '@datastructures-js/priority-queue'
-import { Codec } from '@polkadot/types/types';
+import { MaxPriorityQueue, PriorityQueueItem } from '@datastructures-js/priority-queue'
+import { Codec } from "@polkadot/types/types";
 import pMap from "p-map";
-const types = require("./types");
 
 const prisma = new PrismaClient()
 const queue = new MaxPriorityQueue<Header>();
@@ -35,7 +34,7 @@ async function startChain() {
 
 async function createApi() {
   const provider = new WsProvider(process.env.ENDPOINT);
-  api = await ApiPromise.create({ provider, types })
+  api = await ApiPromise.create({ provider, ...require("./type") })
   await api.isReady;
 }
 
@@ -95,7 +94,7 @@ async function runQueue() {
       await sleep(1000);
       continue;
     }
-    const { element: header } = queue.dequeue();
+    const { element: header } = queue.dequeue() as PriorityQueueItem<Header>;
     const blockNum = header.number.toNumber();
     for (let i = syncBlockNum; i < blockNum - 1; i++) {
       const header = await getBlockHeader(i);
@@ -202,7 +201,6 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         .map((record, recordIndex) => ({ record, recordIndex }))
         .filter(({record: { phase } }) => phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(exIndex));
       let success = true;
-      let exEventsCount = exEvents.length;
       exEvents.forEach(({ record, recordIndex }) => {
         const { event } = record;
         if (api.events.system.ExtrinsicFailed.is(event)) {
@@ -219,7 +217,6 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
             const value = dispatchErrorObj[name];
             extrinsicError = { module: "", name, value, doc: "" };
           }
-          return;
         }
         
         const { data, section, meta, method } = event;
@@ -233,13 +230,13 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
           }
         });
         events.push({
-          eventId: `${blockNum}-${formatIdx(recordIndex, exEventsCount)}`,
+          eventId: `${blockNum}-${formatIdx(recordIndex, records.length)}`,
           blockNum,
           blockAt,
           extrinsicId: `${blockNum}-${exIndex}`,
           section,
           method,
-          accountId: isSigned ? ex.signer.toString() : "",
+          accountId: isSigned ? ex.signer.toString() : null,
           data: eventData as any,
         });
       });
@@ -282,6 +279,31 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         finalized,
       };
     });
+
+    records
+      .map((record, recordIndex) => ({ record, recordIndex }))
+      .filter(({record: { phase } }) => !phase.isApplyExtrinsic)
+      .forEach(({ record, recordIndex }) => {
+        const { event } = record;
+        const { data, section, meta, method } = event;
+        const eventData = data.map((arg, index) => {
+          return {
+            type: meta.args[index].toString(),
+            value: arg.toString(),
+          }
+        });
+        events.push({
+          eventId: `${blockNum}-${formatIdx(recordIndex, records.length)}`,
+          blockNum,
+          blockAt,
+          extrinsicId: null,
+          section,
+          method,
+          accountId: null,
+          data: eventData as any,
+        });
+      });
+
     const logs = signedBlock.block.header.digest.logs.map((log, index) => {
       return {
         logId: `${blockNum}-${index}`,

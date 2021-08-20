@@ -28,7 +28,7 @@ model ChainEvent {
   eventId        String          @id
   blockNum       Int
   blockAt        Int
-  extrinsicId    String
+  extrinsicId    String?
   section        String
   method         String
   data           Json

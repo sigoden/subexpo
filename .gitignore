@@ -3,5 +3,7 @@ node_modules
 .env
 tmp
 .next
-types.json
 dist
+*.lock
+*.log
+type.js
