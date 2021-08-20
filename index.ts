@@ -217,6 +217,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
             const value = dispatchErrorObj[name];
             extrinsicError = { module: "", name, value, doc: "" };
           }
+          return;
         }
         
         const { data, section, meta, method } = event;
