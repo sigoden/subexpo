@@ -134,6 +134,7 @@ enum SaveBlockMode {
   New,
   Sync,
   Finalize,
+  Force,
 }
 
 async function saveBlock(header: Header, mode: SaveBlockMode) {
@@ -144,7 +145,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
   try {
     let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum }});
     if (chainBlock) {
-      if (chainBlock.blockHash === blockHash ) {
+      if (chainBlock.blockHash === blockHash && mode !== SaveBlockMode.Force) {
         if (finalized && !chainBlock.finalized) {
           await prisma.$transaction([
             prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true }}),
@@ -331,7 +332,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
 async function testBlock(blockNum: number) {
   await createApi();
   const header = await getBlockHeader(blockNum);
-  await saveBlock(header, SaveBlockMode.Sync);
+  await saveBlock(header, SaveBlockMode.Force);
 }
 
 function getExtrinsicKind(section: string, method: string, isSigned: boolean): number {
