@@ -12,6 +12,7 @@ const queue = new MaxPriorityQueue<Header>();
 let api: ApiPromise;
 let chainSpecVersions = new Map<number, ChainVersion>();
 let syncBlockNum = 0;
+let syncPage = 0;
 
 async function main() {
   await startChain();
@@ -55,10 +56,9 @@ async function fixMissBlocks() {
   const lastBlockNum = await getSavedBlockNum();
   if (lastBlockNum === 0) return; 
   const SIZE = 2000;
-  let page = lastBlockNum / SIZE;
-  if (lastBlockNum % SIZE > 0) page += 1;
+  let page = Math.ceil(lastBlockNum / SIZE);
   const blockNums = new Set();
-  for (let i = 0; i < page; i++) {
+  for (let i = syncPage; i < page; i++) {
     const blocks = await prisma.chainBlock.findMany({
       where: { blockNum: { "gte": SIZE * i, "lt": SIZE * (i+1) } },
       select: { blockNum: true },
@@ -69,6 +69,7 @@ async function fixMissBlocks() {
       blockNums.add(block.blockNum);
     })
   }
+  syncPage = Math.max(0, page - 1);
   const toSyncBlockNums = [];
   for (let i = 0; i <= lastBlockNum; i++) {
     if (!blockNums.has(i)) toSyncBlockNums.push(i)
@@ -344,7 +345,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         }),
       ]);
       console.log(`${isNew ? " CreateBlock "  : " UpdateBlock " }: ${blockNum} ${blockHash}`);
-  } catch (err) {
+  } catch (err: any) {
     if (/UniqueConstraintViolation/.test(err.message)) {
     } else {
       console.log(` CreateBlock : ${blockNum}, ${err.message}`);
