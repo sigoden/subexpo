@@ -1,6 +1,6 @@
 import { PrismaClient, ChainEvent, ChainVersion, ChainTransfer } from '@prisma/client'
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { Call, CodecHash, FunctionArgumentMetadataV9 } from "@polkadot/types/interfaces";
+import { Call, CodecHash, FunctionArgumentMetadataV9, DispatchError } from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
 import { MaxPriorityQueue, PriorityQueueItem } from '@datastructures-js/priority-queue'
 import { Codec } from "@polkadot/types/types";
@@ -213,7 +213,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
             const error = module.errors[dispatchErrorModule.error.toNumber()];
             extrinsicError = { module: module.name, name: error.name, doc: error.docs[0] };
           } else {
-            const dispatchErrorObj =  dispatchError.toHuman() as any;
+            const dispatchErrorObj = dispatchError.toHuman() as any;
             const name = Object.keys(dispatchErrorObj)[0];
             const value = dispatchErrorObj[name];
             extrinsicError = { module: "", name, value, doc: "" };
@@ -226,8 +226,21 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
           return;
         }
         const eventData = data.map((arg, index) => {
+          const type = meta.args[index].toString();
+          if (type === "DispatchError") {
+            let arg_: DispatchError = arg as DispatchError;
+            if (arg_.isModule) {
+              let dispatchErrorModule = arg_.asModule;
+              const module = (chainVersion.rawData as any).modules[dispatchErrorModule.index.toNumber()];
+              const error = module.errors[dispatchErrorModule.error.toNumber()];
+              value: return {
+                type,
+                value: JSON.stringify({module: module.name, error: error.name}),
+              }
+            }
+          }
           return {
-            type: meta.args[index].toString(),
+            type,
             value: arg.toString(),
           }
         });
