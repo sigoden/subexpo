@@ -12,7 +12,6 @@ const queue = new MaxPriorityQueue<Header>();
 let api: ApiPromise;
 let chainSpecVersions = new Map<number, ChainVersion>();
 let syncBlockNum = 0;
-let syncPage = 0;
 
 async function main() {
   await startChain();
@@ -26,8 +25,9 @@ async function startChain() {
   });
   runQueue();
   let isSyncing = true;
+  let pageIdx = 0;
   while (isSyncing) {
-    await fixMissBlocks();
+    pageIdx = await fixMissBlocks(pageIdx);
     isSyncing = await syncChain();
   }
   listenChain();
@@ -52,13 +52,13 @@ async function syncChain() {
   return isSyncing;
 }
 
-async function fixMissBlocks() {
+async function fixMissBlocks(pageIdx: number) {
   const lastBlockNum = await getSavedBlockNum();
-  if (lastBlockNum === 0) return; 
+  if (lastBlockNum === 0) return 0; 
   const SIZE = 2000;
   let page = Math.ceil(lastBlockNum / SIZE);
   const blockNums = new Set();
-  for (let i = syncPage; i < page; i++) {
+  for (let i = pageIdx; i < page; i++) {
     const blocks = await prisma.chainBlock.findMany({
       where: { blockNum: { "gte": SIZE * i, "lt": SIZE * (i+1) } },
       select: { blockNum: true },
@@ -69,12 +69,12 @@ async function fixMissBlocks() {
       blockNums.add(block.blockNum);
     })
   }
-  syncPage = Math.max(0, page - 1);
   const toSyncBlockNums = [];
-  for (let i = 0; i <= lastBlockNum; i++) {
+  for (let i = pageIdx * SIZE; i <= lastBlockNum; i++) {
     if (!blockNums.has(i)) toSyncBlockNums.push(i)
   }
   await batchSaveBlockNums(toSyncBlockNums);
+  return page;
 }
 
 async function batchSaveBlockNums(blockNums: number[]): Promise<number> {
