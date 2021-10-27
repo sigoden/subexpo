@@ -11,7 +11,7 @@ async function detectKind(value) {
   if (typeof value !== "string") return "";
   if (value === "") return "";
   if (/^\d+$/.test(value)) {
-    const block = await prisma.chainBlock.findFirst({ where: { blockNum }});
+    const block = await prisma.chainBlock.findFirst({ where: { blockNum: parseInt(value) }});
     if (!block) return "";
     return "block";
   }
