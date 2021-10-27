@@ -17,7 +17,7 @@ module.exports = { typesBundle: typesBundleForPolkadot };
 ```
 > Don't forget to install your package `npm i <your type defintions package>`
 
-- Start Harvester
+- Start Scaner
 ```
 yarn
 docker-compose up -d

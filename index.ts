@@ -209,7 +209,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
           const dispatchError = event.data[0];
           if (dispatchError.isModule) {
             const dispatchErrorModule = event.data[0].asModule;
-            const module = (chainVersion.rawData as any).modules[dispatchErrorModule.index.toNumber()];
+            const module = (chainVersion.rawData as any).modules.find((v: any) => v.index === dispatchErrorModule.index.toString());
             const error = module.errors[dispatchErrorModule.error.toNumber()];
             extrinsicError = { module: module.name, name: error.name, doc: error.docs[0] };
           } else {
