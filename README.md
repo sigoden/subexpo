@@ -4,7 +4,7 @@ Block explorer for Substrate based chain
 
 ## Development
 
-- Prepare type.js
+- Create type.js
 ```
 const { typesBundleForPolkadot  } = require("<your type defintions package>");
 module.exports = { typesBundle: typesBundleForPolkadot };
@@ -18,7 +18,7 @@ yarn prisma db push
 yarn dev
 ```
 
-- Start Ui
+- Start UI
 ```
 cd ui
 yarn build
