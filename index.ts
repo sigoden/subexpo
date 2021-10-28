@@ -361,7 +361,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
   } catch (err: any) {
     if (/UniqueConstraintViolation/.test(err.message)) {
     } else {
-      console.log(` CreateBlock : ${blockNum}, ${err.message}`);
+      console.log(` CreateBlock : ${blockNum} failed, ${err.message}`);
     }
   }
 }
