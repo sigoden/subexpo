@@ -6,7 +6,7 @@
   },
   "dependencies": {
     "@datastructures-js/priority-queue": "^5.2.0",
-    "@polkadot/api": "^5.5.2",
+    "@polkadot/api": "^6.9.1",
     "@prisma/client": "2.28.0",
     "p-map": "^4"
   },
