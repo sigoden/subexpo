@@ -212,9 +212,8 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
             extrinsicError = lookupErrorInfo(chainVersion.rawData as any, dispatchErrorModule);
           } else {
             const dispatchErrorObj = dispatchError.toHuman() as any;
-            const name = Object.keys(dispatchErrorObj)[0];
-            const value = dispatchErrorObj[name];
-            extrinsicError = { module: "", name, message: value };
+            const name = typeof dispatchErrorObj === "string"  ? dispatchErrorObj : dispatchErrorObj[Object.keys(dispatchErrorObj)[0]];
+            extrinsicError = { module: "", name, message: "" };
           }
           return;
         }
@@ -463,14 +462,17 @@ function getChainModules(metadataObj: any): ChainModule[] {
       });
     }
   } else if (key === "V14") {
-    const lookupVariantNames = (id: string) =>
-      metadataObj[key].lookup.types.map((v: any) => v.id === id).type.def.Variant.variants.map((v: any) => v.name) || [];
+    const lookupVariantNames = (id: string) => {
+      if (!id) return [];
+      const typeObj = metadataObj[key].lookup.types.find((v: any) => v.id === id);
+      return typeObj.type.def.Variant.variants.map((v: any) => v.name);
+    }
     for (const mod of metadataObj[key].pallets) {
       mods.push({
         name: mod.name,
-        calls: lookupVariantNames(mod.calls.type),
-        errors: lookupVariantNames(mod.errors.type),
-        events: lookupVariantNames(mod.events.type),
+        calls: lookupVariantNames(mod.calls?.type),
+        errors: lookupVariantNames(mod.errors?.type),
+        events: lookupVariantNames(mod.events?.type),
       })
     }
   } else {
