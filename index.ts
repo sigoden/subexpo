@@ -156,11 +156,11 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         return;
       } else {
         prisma.$transaction([
-          prisma.chainBlock.delete({ where: { blockNum } }),
           prisma.chainExtrinsic.deleteMany({ where: { blockNum } }),
           prisma.chainEvent.deleteMany({ where: { blockNum } }),
           prisma.chainLog.deleteMany({ where: { blockNum } }),
           prisma.chainTransfer.deleteMany({ where: { blockNum } }),
+          prisma.chainBlock.delete({ where: { blockNum } }),
         ]);
         isNew = false;
       }
