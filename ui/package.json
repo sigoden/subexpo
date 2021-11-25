@@ -6,16 +6,16 @@
     "start": "next start -p 4000"
   },
   "dependencies": {
-    "@ant-design/icons": "4.2.1",
-    "@next/bundle-analyzer": "^9.1.4",
+    "@ant-design/icons": "4.7.0",
+    "@next/bundle-analyzer": "^12.0.4",
     "@polkadot/api": "^6.9.1",
     "@umijs/hooks": "^1.9.3",
-    "antd": "4.3.0",
-    "camelcase": "^6.2.0",
+    "antd": "4.17.1",
+    "camelcase": "^6.2.1",
     "moment": "^2.29.1",
     "next": "latest",
     "react": "^17.0.2",
-    "react-copy-to-clipboard": "^5.0.3",
+    "react-copy-to-clipboard": "^5.0.4",
     "react-dom": "^17.0.2"
   },
   "browser": {

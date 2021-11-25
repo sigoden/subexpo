@@ -347,7 +347,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         data: logs,
       }),
       prisma.chainEvent.createMany({
-        data: events,
+        data: events as any,
       }),
       prisma.chainTransfer.createMany({
         data: transfers,
