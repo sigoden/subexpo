@@ -4,6 +4,5 @@ node_modules
 tmp
 .next
 dist
-*.lock
 *.log
 type.js
