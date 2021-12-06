@@ -9,6 +9,7 @@
     "@ant-design/icons": "4.7.0",
     "@next/bundle-analyzer": "^12.0.4",
     "@polkadot/api": "^6.9.2",
+    "@prisma/client": "^3.6.0",
     "@umijs/hooks": "^1.9.3",
     "antd": "4.17.1",
     "camelcase": "^6.2.1",

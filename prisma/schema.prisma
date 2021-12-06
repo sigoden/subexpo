@@ -33,8 +33,8 @@ model ChainEvent {
   method         String
   data           Json
   accountId      String?
-  ChainBlock     ChainBlock?     @relation(fields: [blockNum], references: [blockNum])
-  ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId])
+  ChainBlock     ChainBlock?     @relation(fields: [blockNum], references: [blockNum], onDelete: Cascade, onUpdate: Cascade)
+  ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId], onDelete: Cascade, onUpdate: Cascade)
   @@index([accountId])
   @@index([section, method])
 }
@@ -61,7 +61,7 @@ model ChainExtrinsic {
   versionInfo     Int
   extrinsicLength Int
   finalized       Boolean        @default(false)
-  ChainBlock      ChainBlock?    @relation(fields: [blockNum], references: [blockNum])
+  ChainBlock      ChainBlock?    @relation(fields: [blockNum], references: [blockNum], onDelete: Cascade, onUpdate: Cascade)
   transfer        ChainTransfer?
   @@index([accountId])
   @@index([section, method])
@@ -72,7 +72,7 @@ model ChainLog {
   blockNum   Int
   logType    String
   data       Json
-  ChainBlock ChainBlock? @relation(fields: [blockNum], references: [blockNum])
+  ChainBlock ChainBlock? @relation(fields: [blockNum], references: [blockNum], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model ChainVersion {
@@ -93,7 +93,7 @@ model ChainTransfer {
   method         String
   success        Boolean
   nonce          Int
-  ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId])
+  ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId], onDelete: Cascade, onUpdate: Cascade)
   @@index([from])
   @@index([to])
   @@index([blockNum])
