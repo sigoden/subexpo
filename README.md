@@ -10,6 +10,8 @@ DATABASE_URL="mysql://root:pass@localhost:3306/subexpo"
 ENDPOINT="ws://localhost:9944"
 ```
 
+copy .env to ui/.env
+
 - Create type.js
 ```
 const { typesBundleForPolkadot  } = require("<your type defintions package>");
