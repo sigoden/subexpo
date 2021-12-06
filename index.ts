@@ -2,12 +2,13 @@ import { PrismaClient, ChainEvent, ChainVersion, ChainTransfer } from '@prisma/c
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Call, CodecHash, FunctionArgumentMetadataV9, DispatchError } from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
-import { MaxPriorityQueue, PriorityQueueItem } from '@datastructures-js/priority-queue'
+import { MinPriorityQueue, PriorityQueueItem } from '@datastructures-js/priority-queue'
 import { Codec } from "@polkadot/types/types";
 import pMap from "p-map";
 
 const prisma = new PrismaClient()
-const queue = new MaxPriorityQueue<Header>();
+const finalizedQueue = new MinPriorityQueue<Header>();
+const newQueue: Header[] = [];
 
 let api: ApiPromise;
 let chainSpecVersions = new Map<number, ChainVersion>();
@@ -23,7 +24,8 @@ async function startChain() {
   chainVersions.forEach(chainVersion => {
     chainSpecVersions.set(chainVersion.specVersion, chainVersion);
   });
-  runQueue();
+  runFinalizedQueue();
+  runNewQueue();
   let isSyncing = true;
   let pageIdx = 0;
   while (isSyncing) {
@@ -89,28 +91,40 @@ async function batchSaveBlockNums(blockNums: number[]): Promise<number> {
   return maxBlockNum;
 }
 
-async function runQueue() {
+async function runFinalizedQueue() {
   while (true) {
-    if (queue.isEmpty()) {
+    if (finalizedQueue.isEmpty()) {
       await sleep(1000);
       continue;
     }
-    const { element: header } = queue.dequeue() as PriorityQueueItem<Header>;
+    const { element: header } = finalizedQueue.dequeue() as PriorityQueueItem<Header>;
     const blockNum = header.number.toNumber();
-    for (let i = syncBlockNum; i < blockNum - 1; i++) {
+    for (let i = syncBlockNum + 1; i <= blockNum; i++) {
       const header = await getBlockHeader(i);
       await saveBlock(header, SaveBlockMode.Finalize);
+      syncBlockNum = header.number.toNumber();
     }
-    await saveBlock(header, SaveBlockMode.Finalize);
-    syncBlockNum = blockNum;
   }
 }
 
-async function listenChain() {
-  await api.rpc.chain.subscribeFinalizedHeads(header => {
-    queue.enqueue(header, header.number.toNumber())
+async function runNewQueue() {
+  while (true) {
+    if (newQueue.length === 0) {
+      await sleep(666);
+      continue;
+    }
+    const header = newQueue.shift();
+    if (header) await saveBlock(header, SaveBlockMode.New);
+  }
+}
+
+function listenChain() {
+  api.rpc.chain.subscribeFinalizedHeads(header => {
+    finalizedQueue.enqueue(header, header.number.toNumber())
   });
-  await api.rpc.chain.subscribeNewHeads(header => saveBlock(header, SaveBlockMode.New));
+  api.rpc.chain.subscribeNewHeads(header => {
+    newQueue.push(header)
+  });
 }
 
 async function getFinalizedBlockNum() {
@@ -155,7 +169,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         }
         return;
       } else {
-        prisma.chainBlock.delete({ where: { blockNum } });
+        await prisma.chainBlock.delete({ where: { blockNum } });
         isNew = false;
       }
     }
