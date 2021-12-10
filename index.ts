@@ -231,7 +231,10 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
           return;
         }
         const eventData = data.map((arg, index) => {
-          const type = meta.args[index].toString();
+          let type = meta.args[index].toString();
+          if (type.startsWith('{"_enum":{"Other":"Null"')) {
+            type = "DispatchError"
+          }
           if (type === "DispatchError") {
             let arg_: DispatchError = arg as DispatchError;
             if (arg_.isModule) {
