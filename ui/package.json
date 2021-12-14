@@ -7,9 +7,9 @@
   },
   "dependencies": {
     "@ant-design/icons": "4.7.0",
-    "@next/bundle-analyzer": "^12.0.4",
+    "@next/bundle-analyzer": "^12.0.7",
     "@umijs/hooks": "^1.9.3",
-    "antd": "4.17.1",
+    "antd": "4.17.3",
     "camelcase": "^6.2.1",
     "moment": "^2.29.1",
     "next": "latest",

@@ -15,7 +15,11 @@ let chainSpecVersions = new Map<number, ChainVersion>();
 let syncBlockNum = 0;
 
 async function main() {
-  await startChain();
+  if (process.env.DEBUG_BLOCK) {
+    await testBlock(parseInt(process.env.DEBUG_BLOCK));
+  } else {
+    await startChain();
+  }
 }
 
 async function startChain() {
@@ -327,11 +331,13 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
       });
 
     const logs = signedBlock.block.header.digest.logs.map((log, index) => {
+      let logValue = log.value.toHuman();
+      if (logValue == null) logValue = [];
       return {
         logId: `${blockNum}-${index}`,
         blockNum,
         logType: log.type,
-        data: log.value.toHuman() as any,
+        data: logValue as any,
       }
     });
     const block = {
