@@ -10,6 +10,11 @@ setup .env follows .env.example
 DATABASE_URL="mysql://root:pass@localhost:3306/subexpo"
 ENDPOINT="ws://localhost:9944"
 ```
+
+```
+cp .env scanner/
+cp .env ui/
+```
 ### Start mysql
 
 ```sh

@@ -3,12 +3,33 @@ name: Check lint
 on: [push, pull_request]
 
 jobs:
-  build:
+  check-scanner:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: scanner
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
         with:
           node-version: '16'
-      - run: yarn
+      - run: yarn 
+      - run: yarn gen
+      - run: yarn build
+      - run: yarn lint
+  build-ui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '16'
+      - run: yarn 
+      - run: yarn gen
+      - run: yarn build
       - run: yarn lint

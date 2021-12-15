@@ -5,15 +5,13 @@
   },
   "extends": [
     "plugin:@typescript-eslint/recommended",
-    "next",
     "plugin:prettier/recommended"
   ],
   "plugins": [
     "@typescript-eslint"
   ],
-  "ignorePatterns": [".next", "node_modules", "dist", "tmp"],
+  "ignorePatterns": ["type.js", "node_modules", "dist"],
   "rules": {
-    "@next/next/no-html-link-for-pages": ["error", "./ui/pages/"],
     "@typescript-eslint/no-var-requires": 0,
     "@typescript-eslint/no-explicit-any": 0,
     "@typescript-eslint/no-empty-interface": 0,

@@ -1,0 +1,18 @@
+{
+  "extends": [
+    "next",
+    "plugin:prettier/recommended"
+  ],
+  "ignorePatterns": [
+    ".next",
+    "node_modules"
+  ],
+  "rules": {
+    "@next/next/no-img-element": 0,
+    "@next/next/google-font-display": 0,
+    "semi": [
+      "error",
+      "always"
+    ]
+  }
+}
