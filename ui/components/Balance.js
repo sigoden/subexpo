@@ -1,4 +1,4 @@
-import { useRequest } from "@umijs/hooks";
+import { useRequest } from "ahooks";
 import { formatNum } from "../lib/utils";
 
 export default function Balance({ balance }) {

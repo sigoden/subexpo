@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useRequest } from "@umijs/hooks";
+import { useAntdTable } from "ahooks";
 import MainLayout from "../components/MainLayout";
 import SearchForm, {
   parseQueryForm,
@@ -16,11 +16,10 @@ async function listEvents(paginatedParams, queryForm) {
 
 export default function EventsPage() {
   const router = useRouter();
-  const { tableProps } = useRequest(
+  const { tableProps } = useAntdTable(
     (paginatedParams) =>
       listEvents(paginatedParams, parseQueryForm(router.query)),
     {
-      paginated: true,
       refreshDeps: [router.query],
       defaultPageSize: 20,
     }

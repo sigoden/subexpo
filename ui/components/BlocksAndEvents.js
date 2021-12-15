@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Row, Col, Button } from "antd";
-import { useRequest } from "@umijs/hooks";
+import { useRequest } from "ahooks";
 import Link from "next/link";
 import { formatNum, formatNumIdx } from "../lib/utils";
 import TimeAgo from "./TimeAgo";

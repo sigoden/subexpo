@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useRequest } from "@umijs/hooks";
+import { useAntdTable } from "ahooks";
 import MainLayout from "../components/MainLayout";
 import TransferTable from "../components/TransferTable";
 
@@ -10,11 +10,10 @@ async function listExtrinsics(paginatedParams, accountId) {
 
 export default function ExtrinsicsPage() {
   const router = useRouter();
-  const { tableProps } = useRequest(
+  const { tableProps } = useAntdTable(
     (paginatedParams) =>
       listExtrinsics(paginatedParams, router.query.accountId),
     {
-      paginated: true,
       refreshDeps: [router.query],
       defaultPageSize: 20,
     }

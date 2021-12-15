@@ -1,4 +1,4 @@
-import { useRequest } from "@umijs/hooks";
+import { useAntdTable } from "ahooks";
 import BlockTable from "../components/BlockTable";
 import MainLayout from "../components/MainLayout";
 
@@ -9,8 +9,7 @@ async function listExtrinsics(paginatedParams) {
 }
 
 export default function BlocksPage() {
-  const { tableProps } = useRequest((params) => listExtrinsics(params), {
-    paginated: true,
+  const { tableProps } = useAntdTable((params) => listExtrinsics(params), {
     defaultPageSize: 20,
   });
   return <BlockTable {...tableProps} />;

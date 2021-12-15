@@ -1,5 +1,5 @@
 import "antd/dist/antd.css";
-import { useRequest } from "@umijs/hooks";
+import { useRequest } from "ahooks";
 import "../global.css";
 
 export default function MyApp({ Component, pageProps }) {
