@@ -1,7 +1,8 @@
 import prisma from "../../lib/prisma";
 
 export default async function handler(req, res) {
-  const { current, pageSize, section, method, startDate, endDate, accountId } = req.query;
+  const { current, pageSize, section, method, startDate, endDate, accountId } =
+    req.query;
   const currentValue = parseInt(current) || 1;
   const pageSizeValue = parseInt(pageSize) || 20;
   const startDateValue = parseInt(startDate);
@@ -23,25 +24,23 @@ export default async function handler(req, res) {
     where.accountId = accountId;
   }
 
-  const [total, list] = await Promise.all(
-    [
-      prisma.chainEvent.count({ where }),
-      prisma.chainEvent.findMany({
-        where,
-        select: {
-          eventId: true,
-          blockNum: true,
-          extrinsicId: true,
-          blockAt: true,
-          section: true,
-          method: true,
-          data: true,
-        },
-        orderBy: { blockNum: "desc" },
-        skip: (currentValue - 1) * pageSizeValue,
-        take: pageSizeValue,
-      }),
-    ],
-  )
-  res.json({total, list});
+  const [total, list] = await Promise.all([
+    prisma.chainEvent.count({ where }),
+    prisma.chainEvent.findMany({
+      where,
+      select: {
+        eventId: true,
+        blockNum: true,
+        extrinsicId: true,
+        blockAt: true,
+        section: true,
+        method: true,
+        data: true,
+      },
+      orderBy: { blockNum: "desc" },
+      skip: (currentValue - 1) * pageSizeValue,
+      take: pageSizeValue,
+    }),
+  ]);
+  res.json({ total, list });
 }

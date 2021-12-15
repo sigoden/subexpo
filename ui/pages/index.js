@@ -4,15 +4,11 @@ import { getLatestBLocksAndEvents } from "../lib/prisma";
 
 export async function getServerSideProps() {
   const { blocks, events } = await getLatestBLocksAndEvents();
-  return { props: { blocks, events }};
+  return { props: { blocks, events } };
 }
 
 export default function IndexPage(props) {
-  return (
-    <BlocksAndEvents {...props} />
-  );
+  return <BlocksAndEvents {...props} />;
 }
 
-IndexPage.getLayout = (page) => (
-  <MainLayout>{page}</MainLayout>
-)
+IndexPage.getLayout = (page) => <MainLayout>{page}</MainLayout>;

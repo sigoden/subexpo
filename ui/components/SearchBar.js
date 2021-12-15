@@ -7,8 +7,9 @@ import styles from "./SearchBar.module.css";
 
 export default function SearchBar() {
   const router = useRouter();
-  const onSearch = useCallback(async q => {
-      const data = await fetch(`/api/search?q=${q}`).then(res => res.json());
+  const onSearch = useCallback(
+    async (q) => {
+      const data = await fetch(`/api/search?q=${q}`).then((res) => res.json());
       const { kind, value } = data;
       if (kind === "block") {
         router.push("/blocks/" + value);
@@ -19,7 +20,9 @@ export default function SearchBar() {
       } else {
         message.error("Not found");
       }
-  }, [router]);
+    },
+    [router]
+  );
   return (
     <div className={styles.wrapSearch}>
       <Search

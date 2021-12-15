@@ -18,34 +18,29 @@ export async function getServerSideProps({ params }) {
   const api = await createApi();
   const accountInfo = await api.query.system.account(id);
   if (accountInfo) {
-    const [extrinsics, extrinsicsCount, transfers, transfersCount] = await Promise.all([
-      await prisma.chainExtrinsic.findMany({
-        where: { accountId: id },
-        orderBy: { blockNum: "desc" },
-        take: 10,
-      }),
-      await prisma.chainExtrinsic.count({
-        where: { accountId: id },
-      }),
-      await prisma.chainTransfer.findMany({
-        where: {
-          OR: [
-            { from: id },
-            { to: id },
-          ]
-        },
-        orderBy: { blockNum: "desc" },
-        take: 10,
-      }),
-      await prisma.chainTransfer.count({
-        where: {
-          OR: [
-            { from: id },
-            { to: id },
-          ]
-        },
-      }),
-    ])
+    const [extrinsics, extrinsicsCount, transfers, transfersCount] =
+      await Promise.all([
+        await prisma.chainExtrinsic.findMany({
+          where: { accountId: id },
+          orderBy: { blockNum: "desc" },
+          take: 10,
+        }),
+        await prisma.chainExtrinsic.count({
+          where: { accountId: id },
+        }),
+        await prisma.chainTransfer.findMany({
+          where: {
+            OR: [{ from: id }, { to: id }],
+          },
+          orderBy: { blockNum: "desc" },
+          take: 10,
+        }),
+        await prisma.chainTransfer.count({
+          where: {
+            OR: [{ from: id }, { to: id }],
+          },
+        }),
+      ]);
     return {
       props: {
         id,
@@ -56,20 +51,23 @@ export async function getServerSideProps({ params }) {
         extrinsicsCount,
         transfers,
         transfersCount,
-      }
-    }
+      },
+    };
   }
   return { notFound: true };
 }
 
-
 export default function AccountPage(account) {
   const router = useRouter();
-  const {id, extrinsics, extrinsicsCount, transfers, transfersCount} = account;
+  const { id, extrinsics, extrinsicsCount, transfers, transfersCount } =
+    account;
   const [tabKey, setTabKey] = useState("extrinsics");
-  const onTabChange = useCallback(key => {
-    setTabKey(key);
-  }, [setTabKey])
+  const onTabChange = useCallback(
+    (key) => {
+      setTabKey(key);
+    },
+    [setTabKey]
+  );
   const onViewAll = useCallback(() => {
     router.push(`/${tabKey}?accountId=${id}`);
   }, [tabKey, router, id]);
@@ -85,24 +83,34 @@ export default function AccountPage(account) {
       </Row>
       <AccountInfo account={account} />
       {extrinsicsCount + transfersCount > 0 && (
-      <Tabs 
-        className={styles.tabs}
-        defaultActiveKey={tabKey}
-        onChange={onTabChange}
-        tabBarExtraContent={<Button onClick={onViewAll}>View All</Button>}>
-        {extrinsicsCount > 0 && (
-        <TabPane tab={`Extrinsics(${extrinsicsCount})`} key="extrinsics">
-          <ExtrinsicTable dataSource={extrinsics} noColumns={["blockNum", "extrinsicHash"]} pagination={false} />
-        </TabPane>)}
-        {transfersCount > 0 && (
-        <TabPane tab={`Transfers(${transfersCount})`} key="transfers">
-          <TransferTable dataSource={transfers} accountId={id} pagination={false} />
-        </TabPane>)}
-      </Tabs>)}
+        <Tabs
+          className={styles.tabs}
+          defaultActiveKey={tabKey}
+          onChange={onTabChange}
+          tabBarExtraContent={<Button onClick={onViewAll}>View All</Button>}
+        >
+          {extrinsicsCount > 0 && (
+            <TabPane tab={`Extrinsics(${extrinsicsCount})`} key="extrinsics">
+              <ExtrinsicTable
+                dataSource={extrinsics}
+                noColumns={["blockNum", "extrinsicHash"]}
+                pagination={false}
+              />
+            </TabPane>
+          )}
+          {transfersCount > 0 && (
+            <TabPane tab={`Transfers(${transfersCount})`} key="transfers">
+              <TransferTable
+                dataSource={transfers}
+                accountId={id}
+                pagination={false}
+              />
+            </TabPane>
+          )}
+        </Tabs>
+      )}
     </div>
-  )
+  );
 }
 
-AccountPage.getLayout = (page) => (
-  <MainLayout noSearch>{page}</MainLayout>
-)
+AccountPage.getLayout = (page) => <MainLayout noSearch>{page}</MainLayout>;

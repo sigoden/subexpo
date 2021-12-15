@@ -5,14 +5,14 @@ import TransferTable from "../components/TransferTable";
 
 async function listExtrinsics(paginatedParams, accountId) {
   let qs = `current=${paginatedParams.current}&pageSize=${paginatedParams.pageSize}&accountId=${accountId}`;
-  return fetch(`/api/transfers?${qs}`)
-    .then((res) => res.json())
+  return fetch(`/api/transfers?${qs}`).then((res) => res.json());
 }
 
 export default function ExtrinsicsPage() {
   const router = useRouter();
   const { tableProps } = useRequest(
-    paginatedParams => listExtrinsics(paginatedParams, router.query.accountId), 
+    (paginatedParams) =>
+      listExtrinsics(paginatedParams, router.query.accountId),
     {
       paginated: true,
       refreshDeps: [router.query],
@@ -26,6 +26,4 @@ export default function ExtrinsicsPage() {
   );
 }
 
-ExtrinsicsPage.getLayout = (page) => (
-  <MainLayout>{page}</MainLayout>
-)
+ExtrinsicsPage.getLayout = (page) => <MainLayout>{page}</MainLayout>;

@@ -22,7 +22,7 @@ export default function MainLayout({ children, noSearch }) {
         </div>
       </Header>
       <Content className={styles.wrapContent}>
-        { noSearch ? <div /> : <SearchBar /> }
+        {noSearch ? <div /> : <SearchBar />}
         {children}
       </Content>
     </Layout>

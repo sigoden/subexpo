@@ -22,10 +22,18 @@ export default function EventTable(props) {
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
       expandIcon={ExpandIcon}
       expandable={{
-        expandedRowRender: record => <div className="args"><Args args={
-          record.data.map((item, index) => ({ name: index + 1, value: item }))
-        } /></div>
+        expandedRowRender: (record) => (
+          <div className="args">
+            <Args
+              args={record.data.map((item, index) => ({
+                name: index + 1,
+                value: item,
+              }))}
+            />
+          </div>
+        ),
       }}
-      {...props} />
+      {...props}
+    />
   );
 }

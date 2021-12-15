@@ -8,22 +8,34 @@ const columns = [
   {
     title: "ID",
     dataIndex: "eventId",
-    render: (eventId, record) => <Link href={`/extrinsics/${record.extrinsicId}`}><a>{eventId}</a></Link>
+    render: (eventId, record) => (
+      <Link href={`/extrinsics/${record.extrinsicId}`}>
+        <a>{eventId}</a>
+      </Link>
+    ),
   },
   {
     title: "Block",
-    dataIndex: 'blockNum',
-    render: blockNum => <Link href={`/blocks/${blockNum}`}><a>{blockNum}</a></Link>
+    dataIndex: "blockNum",
+    render: (blockNum) => (
+      <Link href={`/blocks/${blockNum}`}>
+        <a>{blockNum}</a>
+      </Link>
+    ),
   },
   {
     title: "Extrinsic ID",
     dataIndex: "extrinsicId",
-    render: extrinsicId => <Link href={`/extrinsics/${extrinsicId}`}><a>{extrinsicId}</a></Link>,
+    render: (extrinsicId) => (
+      <Link href={`/extrinsics/${extrinsicId}`}>
+        <a>{extrinsicId}</a>
+      </Link>
+    ),
   },
   {
     title: "Time",
     dataIndex: "blockAt",
-    render: blockAt => <TimeAgo time={blockAt} />,
+    render: (blockAt) => <TimeAgo time={blockAt} />,
   },
   {
     title: "Action",
@@ -31,17 +43,23 @@ const columns = [
     dataIndex: "section",
     render: (_, record) => {
       const { section, method } = record;
-      return <Link href={`/events?section=${section}&method=${method}`}><a>{`${section}(${method})`}</a></Link>
-    }
+      return (
+        <Link href={`/events?section=${section}&method=${method}`}>
+          <a>{`${section}(${method})`}</a>
+        </Link>
+      );
+    },
   },
 ];
 
 export default function EventTable(props) {
   let filterdColumns;
   if (props.inBlock) {
-    filterdColumns = columns.filter(v => v.dataIndex !== "blockAt");
+    filterdColumns = columns.filter((v) => v.dataIndex !== "blockAt");
   } else if (props.inExtrinsic) {
-    filterdColumns = columns.filter(v => v.dataIndex !== "blockAt" && v.dataIndex !== "extrinsicId");
+    filterdColumns = columns.filter(
+      (v) => v.dataIndex !== "blockAt" && v.dataIndex !== "extrinsicId"
+    );
   } else {
     filterdColumns = columns;
   }
@@ -52,9 +70,13 @@ export default function EventTable(props) {
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
       expandIcon={ExpandIcon}
       expandable={{
-        expandedRowRender: record => <div className="args"><Args args={record.data} /></div>
+        expandedRowRender: (record) => (
+          <div className="args">
+            <Args args={record.data} />
+          </div>
+        ),
       }}
-      {...props} 
+      {...props}
     />
   );
 }

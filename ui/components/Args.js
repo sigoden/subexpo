@@ -12,9 +12,7 @@ export default function Args({ args }) {
       {args.map((arg, index) => (
         <div key={index} className={styles.item}>
           <div md={4} className={styles.itemName}>
-            <div>
-              {arg.name || arg.type}
-            </div>
+            <div>{arg.name || arg.type}</div>
           </div>
           <div className={styles.itemValue}>
             <ArgValue type={arg.type} value={arg.value} />
@@ -22,7 +20,7 @@ export default function Args({ args }) {
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 function ArgValue({ type, value }) {
@@ -33,17 +31,13 @@ function ArgValue({ type, value }) {
           <Col md={4} className={styles.itemName}>
             Module
           </Col>
-          <Col className={styles.itemValue}>
-            {value.section}
-          </Col>
+          <Col className={styles.itemValue}>{value.section}</Col>
         </Row>
         <Row className={styles.item}>
           <Col md={4} className={styles.itemName}>
             Call
           </Col>
-          <Col className={styles.itemValue}>
-            {value.method}
-          </Col>
+          <Col className={styles.itemValue}>{value.method}</Col>
         </Row>
         <Row className={styles.item}>
           <Col md={4} className={styles.itemName}>
@@ -54,8 +48,8 @@ function ArgValue({ type, value }) {
           </Col>
         </Row>
       </div>
-    )
-  } 
+    );
+  }
   if (type === "Vec<Call>") {
     return (
       <div>
@@ -70,13 +64,21 @@ function ArgValue({ type, value }) {
           </Row>
         ))}
       </div>
-    )
-  } else if (type === "Balance" || type === "Compact<Balance>" || type === "BalanceOf") {
-    return <Balance balance={value} />
+    );
+  } else if (
+    type === "Balance" ||
+    type === "Compact<Balance>" ||
+    type === "BalanceOf"
+  ) {
+    return <Balance balance={value} />;
   } else if (type === "AccountId" || type === "LookupSource") {
-    return <Link href={`/accounts/${value}`}><a>{value}</a></Link>;
+    return (
+      <Link href={`/accounts/${value}`}>
+        <a>{value}</a>
+      </Link>
+    );
   } else if (type === "Bytes" && value.length > 262144) {
-    return <LargeBytes bytes={value}/>
+    return <LargeBytes bytes={value} />;
   }
   return <div>{value}</div>;
 }

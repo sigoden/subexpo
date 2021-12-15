@@ -1,7 +1,8 @@
 import prisma from "../../lib/prisma";
 
 export default async function handler(req, res) {
-  const { current, pageSize, section, method, startDate, endDate, accountId } = req.query;
+  const { current, pageSize, section, method, startDate, endDate, accountId } =
+    req.query;
   const currentValue = parseInt(current) || 1;
   const pageSizeValue = parseInt(pageSize) || 20;
   const startDateValue = parseInt(startDate);
@@ -11,7 +12,7 @@ export default async function handler(req, res) {
     where.section = section;
     if (method) where.method = method;
   } else {
-    where.kind = {lt: 90};
+    where.kind = { lt: 90 };
   }
   if (startDateValue) where.blockAt = { gte: startDateValue };
   if (endDateValue) {
@@ -28,7 +29,7 @@ export default async function handler(req, res) {
     let originWhere = where;
     let callsWhere = {
       ...Object.keys(originWhere)
-        .filter(v => ["section", "method"].indexOf(v) === -1)
+        .filter((v) => ["section", "method"].indexOf(v) === -1)
         .reduce((acc, cur) => {
           acc[cur] = originWhere[cur];
           return acc;
@@ -36,33 +37,28 @@ export default async function handler(req, res) {
       calls: { contains: `;${section}.${method}` },
     };
     where = {
-      OR: [
-        originWhere,
-        callsWhere,
-      ]
-    }
+      OR: [originWhere, callsWhere],
+    };
   }
 
-  const [total, list] = await Promise.all(
-    [
-      prisma.chainExtrinsic.count({ where }),
-      prisma.chainExtrinsic.findMany({
-        where,
-        select: {
-          extrinsicId: true,
-          blockNum: true,
-          accountId: true,
-          blockAt: true,
-          success: true,
-          section: true,
-          method: true,
-          args: true,
-        },
-        orderBy: { blockNum: "desc" },
-        skip: (currentValue - 1) * pageSizeValue,
-        take: pageSizeValue,
-      }),
-    ],
-  )
-  res.json({total, list});
+  const [total, list] = await Promise.all([
+    prisma.chainExtrinsic.count({ where }),
+    prisma.chainExtrinsic.findMany({
+      where,
+      select: {
+        extrinsicId: true,
+        blockNum: true,
+        accountId: true,
+        blockAt: true,
+        success: true,
+        section: true,
+        method: true,
+        args: true,
+      },
+      orderBy: { blockNum: "desc" },
+      skip: (currentValue - 1) * pageSizeValue,
+      take: pageSizeValue,
+    }),
+  ]);
+  res.json({ total, list });
 }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { Form, Cascader, Input, Grid,  DatePicker, Button } from "antd";
+import { Form, Cascader, Input, Grid, DatePicker, Button } from "antd";
 import { useRequest } from "@umijs/hooks";
 import { useRouter } from "next/router";
 import moment from "moment";
@@ -11,12 +11,14 @@ const { useBreakpoint } = Grid;
 
 function getModules(modules, type) {
   if (!Array.isArray(modules)) return [];
-  let moduleKeys = modules.filter(mod => Array.isArray(mod[type]) && mod[type].length > 0).map(mod => mod.name);
+  let moduleKeys = modules
+    .filter((mod) => Array.isArray(mod[type]) && mod[type].length > 0)
+    .map((mod) => mod.name);
   moduleKeys.sort();
-  return moduleKeys.map(modName => {
-    const mod = modules.find(mod => mod.name === modName);
+  return moduleKeys.map((modName) => {
+    const mod = modules.find((mod) => mod.name === modName);
     modName = camelCase(modName);
-    let childNames = mod[type]?.map(name => {
+    let childNames = mod[type]?.map((name) => {
       if (type === "calls") {
         return camelCase(name);
       }
@@ -28,35 +30,41 @@ function getModules(modules, type) {
       label: modName,
       children: [
         { value: "", label: "*" },
-        ...childNames.map(name => ({ value: name, label: name })),
-      ]
-    }
+        ...childNames.map((name) => ({ value: name, label: name })),
+      ],
+    };
   });
 }
 
 export default function SearchForm({ kind }) {
   const [form] = Form.useForm();
   const screens = useBreakpoint();
-  const { data } = useRequest(
-    { url: "/api/state" }, 
-    { cacheKey: "state" }
-  );
+  const { data } = useRequest({ url: "/api/state" }, { cacheKey: "state" });
   const router = useRouter();
   const modules = useMemo(() => getModules(data?.modules, kind), [data, kind]);
-  const disableDate = useCallback((date) => {
-    if (!data?.firstBlockAt) return false;
-    return date < moment(data.firstBlockAt * 1000).startOf("day") || date > moment().endOf("day")
-  }, [data]);
-  const handle = useCallback(formData => {
-    let qs = "";
-    qs = stringifyQueryForm(qs, formData)
-    const url = router.pathname + (qs ? "?" + qs : "");
-    router.push(url);
-  }, [router]);
+  const disableDate = useCallback(
+    (date) => {
+      if (!data?.firstBlockAt) return false;
+      return (
+        date < moment(data.firstBlockAt * 1000).startOf("day") ||
+        date > moment().endOf("day")
+      );
+    },
+    [data]
+  );
+  const handle = useCallback(
+    (formData) => {
+      let qs = "";
+      qs = stringifyQueryForm(qs, formData);
+      const url = router.pathname + (qs ? "?" + qs : "");
+      router.push(url);
+    },
+    [router]
+  );
 
   useEffect(() => {
     form.setFieldsValue(parseQueryForm(router.query));
-  }, [router]);
+  }, [router, form]);
 
   const submit = useCallback(() => {
     handle(form.getFieldsValue());
@@ -69,22 +77,21 @@ export default function SearchForm({ kind }) {
 
   return (
     <div className={styles.root}>
-      <Form
-        form={form}
-        layout={screens.lg ? "inline" : "vertical"}
-      >
+      <Form form={form} layout={screens.lg ? "inline" : "vertical"}>
         <Form.Item label="Module" name="module">
-          <Cascader options={modules}  style={{width: "100%"}} />
+          <Cascader options={modules} style={{ width: "100%" }} />
         </Form.Item>
         <Form.Item label="Date" name="date">
-          <RangePicker disabledDate={disableDate} style={{width: "100%"}} />
+          <RangePicker disabledDate={disableDate} style={{ width: "100%" }} />
         </Form.Item>
         <Form.Item label="Account" name="accountId">
           <Input placeholder="Search by AccountId" />
         </Form.Item>
         <Form.Item style={{ marginLeft: "auto", marginRight: 0 }}>
           <Button onClick={submit}>Filter</Button>
-          <Button style={{marginLeft: "0.25rem"}} onClick={reset}>Reset</Button>
+          <Button style={{ marginLeft: "0.25rem" }} onClick={reset}>
+            Reset
+          </Button>
         </Form.Item>
       </Form>
     </div>
@@ -120,7 +127,9 @@ export function stringifyQueryForm(qs, queryForm) {
     }
   }
   if (queryForm.date?.length) {
-    qs += `&startDate=${Math.floor(queryForm.date[0].toDate().getTime() / 1000)}`;
+    qs += `&startDate=${Math.floor(
+      queryForm.date[0].toDate().getTime() / 1000
+    )}`;
     qs += `&endDate=${Math.ceil(queryForm.date[1].toDate().getTime() / 1000)}`;
   }
   if (queryForm.accountId) {

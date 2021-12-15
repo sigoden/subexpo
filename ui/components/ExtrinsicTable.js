@@ -10,22 +10,33 @@ const columns = [
   {
     title: "ID",
     dataIndex: "extrinsicId",
-    render: (extrinsicId) => <Link href={`/extrinsics/${extrinsicId}`}><a>{extrinsicId}</a></Link>
+    render: (extrinsicId) => (
+      <Link href={`/extrinsics/${extrinsicId}`}>
+        <a>{extrinsicId}</a>
+      </Link>
+    ),
   },
   {
     title: "Account",
     dataIndex: "accountId",
-    render: accountId => accountId ? <Link href={`/accounts/${accountId}`}><a>{ecllipseHash(accountId)}</a></Link> : "-"
+    render: (accountId) =>
+      accountId ? (
+        <Link href={`/accounts/${accountId}`}>
+          <a>{ecllipseHash(accountId)}</a>
+        </Link>
+      ) : (
+        "-"
+      ),
   },
   {
     title: "Time",
     dataIndex: "blockAt",
-    render: blockAt => <TimeAgo time={blockAt} />,
+    render: (blockAt) => <TimeAgo time={blockAt} />,
   },
   {
     title: "Result",
-    dataIndex: 'success',
-    render: success => <ExtrinsicResult success={success} />,
+    dataIndex: "success",
+    render: (success) => <ExtrinsicResult success={success} />,
   },
   {
     title: "Action",
@@ -33,23 +44,32 @@ const columns = [
     dataIndex: "section",
     render: (_, record) => {
       const { section, method } = record;
-      return <Link href={`/extrinsics?section=${section}&method=${method}`}><a>{`${section}(${method})`}</a></Link>
-    }
+      return (
+        <Link href={`/extrinsics?section=${section}&method=${method}`}>
+          <a>{`${section}(${method})`}</a>
+        </Link>
+      );
+    },
   },
 ];
 
-export default function ExtrinsicTable (props) {
+export default function ExtrinsicTable(props) {
   return (
-    <Table 
-      columns={columns.filter(v => (props.noColumns || []).indexOf(v.dataIndex) === -1)}
-      rowKey="extrinsicId" 
+    <Table
+      columns={columns.filter(
+        (v) => (props.noColumns || []).indexOf(v.dataIndex) === -1
+      )}
+      rowKey="extrinsicId"
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
       expandIcon={ExpandIcon}
       expandable={{
-        expandedRowRender: record => <div className="args"><Args args={record.args} /></div>
+        expandedRowRender: (record) => (
+          <div className="args">
+            <Args args={record.args} />
+          </div>
+        ),
       }}
-      {...props} 
+      {...props}
     />
-  )
+  );
 }
-      

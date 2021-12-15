@@ -12,18 +12,20 @@ const navs = [
 export default function Navs() {
   const router = useRouter();
   return (
-    <Menu 
+    <Menu
       className={styles.navs}
       theme="dark"
       mode="horizontal"
-      selectedKeys={navs.filter(v => router.pathname.startsWith(v[1])).map(v => v[1])}
+      selectedKeys={navs
+        .filter((v) => router.pathname.startsWith(v[1]))
+        .map((v) => v[1])}
     >
       {navs.map(([title, href]) => {
-          return (
-            <Menu.Item key={href}>
-              <Link href={href}>{title}</Link>
-            </Menu.Item>
-          );
+        return (
+          <Menu.Item key={href}>
+            <Link href={href}>{title}</Link>
+          </Menu.Item>
+        );
       })}
     </Menu>
   );

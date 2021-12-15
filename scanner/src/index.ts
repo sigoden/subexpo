@@ -1,17 +1,30 @@
-import { PrismaClient, ChainEvent, ChainVersion, ChainTransfer } from '@prisma/client'
+import {
+  PrismaClient,
+  ChainEvent,
+  ChainVersion,
+  ChainTransfer,
+} from "@prisma/client";
 import { ApiPromise, WsProvider } from "@polkadot/api";
-import { Call, CodecHash, FunctionArgumentMetadataV9, DispatchError } from "@polkadot/types/interfaces";
+import {
+  Call,
+  CodecHash,
+  FunctionArgumentMetadataV9,
+  DispatchError,
+} from "@polkadot/types/interfaces";
 import { Header } from "@polkadot/types/interfaces";
-import { MinPriorityQueue, PriorityQueueItem } from '@datastructures-js/priority-queue'
+import {
+  MinPriorityQueue,
+  PriorityQueueItem,
+} from "@datastructures-js/priority-queue";
 import { Codec } from "@polkadot/types/types";
 import pMap from "p-map";
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 const finalizedQueue = new MinPriorityQueue<Header>();
 const newQueue: Header[] = [];
 
 let api: ApiPromise;
-let chainSpecVersions = new Map<number, ChainVersion>();
+const chainSpecVersions = new Map<number, ChainVersion>();
 let syncBlockNum = 0;
 
 async function main() {
@@ -25,7 +38,7 @@ async function main() {
 async function startChain() {
   await createApi();
   const chainVersions = await prisma.chainVersion.findMany();
-  chainVersions.forEach(chainVersion => {
+  chainVersions.forEach((chainVersion) => {
     chainSpecVersions.set(chainVersion.specVersion, chainVersion);
   });
   runFinalizedQueue();
@@ -43,9 +56,9 @@ async function createApi() {
   const provider = new WsProvider(process.env.ENDPOINT);
   let options = {};
   try {
-    options = { ...require(process.env.TYPE_FILE || "../type") }
+    options = { ...require(process.env.TYPE_FILE || "../type") };
   } catch {}
-  api = await ApiPromise.create({ provider, ...options })
+  api = await ApiPromise.create({ provider, ...options });
   await api.isReady;
 }
 
@@ -57,7 +70,9 @@ async function syncChain() {
     process.exit(1);
   }
   const isSyncing = finalizedBlockNum - lastBlockNum > 1;
-  const toSyncBlockNums = Array.from(Array(finalizedBlockNum - lastBlockNum)).map((_, i) => lastBlockNum + i);
+  const toSyncBlockNums = Array.from(
+    Array(finalizedBlockNum - lastBlockNum)
+  ).map((_, i) => lastBlockNum + i);
   syncBlockNum = await batchSaveBlockNums(toSyncBlockNums);
   return isSyncing;
 }
@@ -66,22 +81,22 @@ async function fixMissBlocks(pageIdx: number) {
   const lastBlockNum = await getSavedBlockNum();
   if (lastBlockNum === 0) return 0;
   const SIZE = 2000;
-  let page = Math.ceil(lastBlockNum / SIZE);
+  const page = Math.ceil(lastBlockNum / SIZE);
   const blockNums = new Set();
   for (let i = pageIdx; i < page; i++) {
     const blocks = await prisma.chainBlock.findMany({
-      where: { blockNum: { "gte": SIZE * i, "lt": SIZE * (i + 1) } },
+      where: { blockNum: { gte: SIZE * i, lt: SIZE * (i + 1) } },
       select: { blockNum: true },
       orderBy: { blockNum: "asc" },
       take: SIZE,
     });
-    blocks.forEach(block => {
+    blocks.forEach((block) => {
       blockNums.add(block.blockNum);
-    })
+    });
   }
   const toSyncBlockNums = [];
   for (let i = pageIdx * SIZE; i <= lastBlockNum; i++) {
-    if (!blockNums.has(i)) toSyncBlockNums.push(i)
+    if (!blockNums.has(i)) toSyncBlockNums.push(i);
   }
   await batchSaveBlockNums(toSyncBlockNums);
   return page;
@@ -94,7 +109,7 @@ async function batchSaveBlockNums(blockNums: number[]): Promise<number> {
     const header = await getBlockHeader(blockNum);
     await saveBlock(header, SaveBlockMode.Sync);
     maxBlockNum = Math.max(blockNum, maxBlockNum);
-  }
+  };
   await pMap(blockNums, saveBlockNum, { concurrency });
   return maxBlockNum;
 }
@@ -105,7 +120,8 @@ async function runFinalizedQueue() {
       await sleep(1000);
       continue;
     }
-    const { element: header } = finalizedQueue.dequeue() as PriorityQueueItem<Header>;
+    const { element: header } =
+      finalizedQueue.dequeue() as PriorityQueueItem<Header>;
     const blockNum = header.number.toNumber();
     for (let i = syncBlockNum + 1; i <= blockNum; i++) {
       const header = await getBlockHeader(i);
@@ -127,22 +143,27 @@ async function runNewQueue() {
 }
 
 function listenChain() {
-  api.rpc.chain.subscribeFinalizedHeads(header => {
-    finalizedQueue.enqueue(header, header.number.toNumber())
+  api.rpc.chain.subscribeFinalizedHeads((header) => {
+    finalizedQueue.enqueue(header, header.number.toNumber());
   });
-  api.rpc.chain.subscribeNewHeads(header => {
-    newQueue.push(header)
+  api.rpc.chain.subscribeNewHeads((header) => {
+    newQueue.push(header);
   });
 }
 
 async function getFinalizedBlockNum() {
   const finalizedBlockHash = await api.rpc.chain.getFinalizedHead();
-  const finalizedBlockHeader = await api.rpc.chain.getHeader(finalizedBlockHash);
+  const finalizedBlockHeader = await api.rpc.chain.getHeader(
+    finalizedBlockHash
+  );
   return finalizedBlockHeader.number.toNumber();
 }
 
 async function getSavedBlockNum() {
-  const chainBlock = await prisma.chainBlock.findFirst({ where: { finalized: true }, orderBy: { blockNum: "desc" } });
+  const chainBlock = await prisma.chainBlock.findFirst({
+    where: { finalized: true },
+    orderBy: { blockNum: "desc" },
+  });
   return chainBlock?.blockNum || 0;
 }
 
@@ -165,13 +186,21 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
   let isNew = true;
   const finalized = mode !== SaveBlockMode.New;
   try {
-    let chainBlock = await prisma.chainBlock.findFirst({ where: { blockNum } });
+    const chainBlock = await prisma.chainBlock.findFirst({
+      where: { blockNum },
+    });
     if (chainBlock) {
       if (chainBlock.blockHash === blockHash && mode !== SaveBlockMode.Force) {
         if (finalized && !chainBlock.finalized) {
           await prisma.$transaction([
-            prisma.chainBlock.update({ where: { blockNum }, data: { finalized: true } }),
-            prisma.chainExtrinsic.updateMany({ where: { blockNum }, data: { finalized: true } }),
+            prisma.chainBlock.update({
+              where: { blockNum },
+              data: { finalized: true },
+            }),
+            prisma.chainExtrinsic.updateMany({
+              where: { blockNum },
+              data: { finalized: true },
+            }),
           ]);
           console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
         }
@@ -182,17 +211,21 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
       }
     }
     let blockAt = 0;
-    const [signedBlock, extHeader, records, runtimeVersion] = await Promise.all([
-      api.rpc.chain.getBlock(header.hash),
-      api.derive.chain.getHeader(header.hash),
-      api.query.system.events.at(header.hash),
-      api.rpc.state.getRuntimeVersion(header.hash),
-    ]);
-    const paymentInfos = await Promise.all(signedBlock.block.extrinsics.map(async ex => {
-      if (ex.isSigned) {
-        return api.rpc.payment.queryInfo(ex.toHex(), header.hash.toHex());
-      }
-    }));
+    const [signedBlock, extHeader, records, runtimeVersion] = await Promise.all(
+      [
+        api.rpc.chain.getBlock(header.hash),
+        api.derive.chain.getHeader(header.hash),
+        api.query.system.events.at(header.hash),
+        api.rpc.state.getRuntimeVersion(header.hash),
+      ]
+    );
+    const paymentInfos = await Promise.all(
+      signedBlock.block.extrinsics.map(async (ex) => {
+        if (ex.isSigned) {
+          return api.rpc.payment.queryInfo(ex.toHex(), header.hash.toHex());
+        }
+      })
+    );
     const blockSpecVersion = runtimeVersion.specVersion.toNumber();
     let chainVersion: ChainVersion;
     if (chainSpecVersions.has(blockSpecVersion)) {
@@ -203,20 +236,28 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
     const events: ChainEvent[] = [];
     const transfers: ChainTransfer[] = [];
     let extrinsicError: any;
-    let extrinsicsCount = signedBlock.block.extrinsics.length;
+    const extrinsicsCount = signedBlock.block.extrinsics.length;
     const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
-      const { isSigned, method: { method, section } } = ex;
+      const {
+        isSigned,
+        method: { method, section },
+      } = ex;
 
       if (section === "timestamp" && method === "set") {
         blockAt = Math.floor(parseInt(ex.args[0].toString()) / 1000);
       }
 
-      let paymentInfo = paymentInfos[exIndex];
+      const paymentInfo = paymentInfos[exIndex];
       const calls = new Set<string>();
-      const exArgs = ex.method.args.map((arg, argIndex) => parseArg(calls, arg, ex.meta.args[argIndex]));
-      let exEvents = records
+      const exArgs = ex.method.args.map((arg, argIndex) =>
+        parseArg(calls, arg, ex.meta.args[argIndex])
+      );
+      const exEvents = records
         .map((record, recordIndex) => ({ record, recordIndex }))
-        .filter(({ record: { phase } }) => phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(exIndex));
+        .filter(
+          ({ record: { phase } }) =>
+            phase.isApplyExtrinsic && phase.asApplyExtrinsic.eq(exIndex)
+        );
       let success = true;
       exEvents.forEach(({ record, recordIndex }) => {
         const { event } = record;
@@ -225,10 +266,16 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
           const dispatchError = event.data[0];
           if (dispatchError.isModule) {
             const dispatchErrorModule = event.data[0].asModule;
-            extrinsicError = lookupErrorInfo(chainVersion.rawData as any, dispatchErrorModule);
+            extrinsicError = lookupErrorInfo(
+              chainVersion.rawData as any,
+              dispatchErrorModule
+            );
           } else {
             const dispatchErrorObj = dispatchError.toHuman() as any;
-            const name = typeof dispatchErrorObj === "string"  ? dispatchErrorObj : dispatchErrorObj[Object.keys(dispatchErrorObj)[0]];
+            const name =
+              typeof dispatchErrorObj === "string"
+                ? dispatchErrorObj
+                : dispatchErrorObj[Object.keys(dispatchErrorObj)[0]];
             extrinsicError = { module: "", name, message: "" };
           }
           return;
@@ -241,23 +288,26 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         const eventData = data.map((arg, index) => {
           let type = meta.args[index].toString();
           if (type.startsWith('{"_enum":{"Other":"Null"')) {
-            type = "DispatchError"
+            type = "DispatchError";
           }
           if (type === "DispatchError") {
-            let arg_: DispatchError = arg as DispatchError;
+            const arg_: DispatchError = arg as DispatchError;
             if (arg_.isModule) {
-              let dispatchErrorModule = arg_.asModule;
-              const errorInfo = lookupErrorInfo(chainVersion.rawData as any, dispatchErrorModule);
+              const dispatchErrorModule = arg_.asModule;
+              const errorInfo = lookupErrorInfo(
+                chainVersion.rawData as any,
+                dispatchErrorModule
+              );
               value: return {
                 type,
                 value: JSON.stringify(errorInfo),
-              }
+              };
             }
           }
           return {
             type,
             value: arg.toString(),
-          }
+          };
         });
         events.push({
           eventId: `${blockNum}-${formatIdx(recordIndex, records.length)}`,
@@ -294,7 +344,9 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         versionInfo: ex.version,
         method,
         section,
-        calls: Array.from(calls).map(v => ";" + v).join(""),
+        calls: Array.from(calls)
+          .map((v) => ";" + v)
+          .join(""),
         error: extrinsicError,
         args: exArgs as any,
         kind: extrinsicKind,
@@ -320,7 +372,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
           return {
             type: meta.args[index].toString(),
             value: arg.toString(),
-          }
+          };
         });
         events.push({
           eventId: `${blockNum}-${formatIdx(recordIndex, records.length)}`,
@@ -342,7 +394,7 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         blockNum,
         logType: log.type,
         data: logValue as any,
-      }
+      };
     });
     const block = {
       blockNum,
@@ -374,7 +426,9 @@ async function saveBlock(header: Header, mode: SaveBlockMode) {
         data: transfers,
       }),
     ]);
-    console.log(`${isNew ? " CreateBlock " : " UpdateBlock "}: ${blockNum} ${blockHash}`);
+    console.log(
+      `${isNew ? " CreateBlock " : " UpdateBlock "}: ${blockNum} ${blockHash}`
+    );
   } catch (err: any) {
     if (/UniqueConstraintViolation/.test(err.message)) {
     } else {
@@ -389,7 +443,11 @@ async function testBlock(blockNum: number) {
   await saveBlock(header, SaveBlockMode.Force);
 }
 
-function getExtrinsicKind(section: string, method: string, isSigned: boolean): number {
+function getExtrinsicKind(
+  section: string,
+  method: string,
+  isSigned: boolean
+): number {
   if (!isSigned) {
     return 99;
   }
@@ -409,14 +467,18 @@ interface ParsedArg {
   value: any;
 }
 
-function parseArg(calls: Set<string>, arg: Codec, argMeta: FunctionArgumentMetadataV9): ParsedArg {
+function parseArg(
+  calls: Set<string>,
+  arg: Codec,
+  argMeta: FunctionArgumentMetadataV9
+): ParsedArg {
   const name = argMeta.name.toString();
   const type = argMeta.type.toString();
   let value;
   if (type === "Call") {
     value = parseCallArg(calls, arg as Call);
   } else if (type === "Vec<Call>") {
-    value = (arg as any as Call[]).map(call => parseCallArg(calls, call));
+    value = (arg as any as Call[]).map((call) => parseCallArg(calls, call));
   } else {
     value = arg.toString();
   }
@@ -424,8 +486,8 @@ function parseArg(calls: Set<string>, arg: Codec, argMeta: FunctionArgumentMetad
 }
 
 interface ParsedCallArg {
-  section: string,
-  method: string,
+  section: string;
+  method: string;
   args: ParsedArg[];
 }
 
@@ -434,12 +496,16 @@ function parseCallArg(calls: Set<string>, call: Call): ParsedCallArg {
   return {
     section: call.section,
     method: call.method,
-    args: call.args.map((callArg, callArgIndex) => parseArg(calls, callArg, call.meta.args[callArgIndex])),
-  }
+    args: call.args.map((callArg, callArgIndex) =>
+      parseArg(calls, callArg, call.meta.args[callArgIndex])
+    ),
+  };
 }
 
 async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
-  let version = await prisma.chainVersion.findUnique({ where: { specVersion } });
+  let version = await prisma.chainVersion.findUnique({
+    where: { specVersion },
+  });
   if (version) return version;
   const [chainMetadata, lastChainVersion] = await Promise.all([
     api.rpc.state.getMetadata(blockHash),
@@ -448,7 +514,12 @@ async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
   if (lastChainVersion?.specVersion === specVersion) return lastChainVersion;
   const metadata = chainMetadata.toHuman().metadata as any;
   const modules = getChainModules(metadata);
-  const mergedModules = lastChainVersion ? mergeChainModule(lastChainVersion.mergedModules as any as ChainModule[], modules) : modules;
+  const mergedModules = lastChainVersion
+    ? mergeChainModule(
+        lastChainVersion.mergedModules as any as ChainModule[],
+        modules
+      )
+    : modules;
   version = await prisma.chainVersion.upsert({
     where: { specVersion },
     update: {},
@@ -465,14 +536,14 @@ async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
 
 interface ChainModule {
   name: string;
-  calls: string[],
-  errors: string[],
-  events: string[],
+  calls: string[];
+  errors: string[];
+  events: string[];
 }
 
 function getChainModules(metadataObj: any): ChainModule[] {
-  const key = Object.keys(metadataObj)[0]
-  let mods = [];
+  const key = Object.keys(metadataObj)[0];
+  const mods = [];
   if (key === "V13") {
     for (const mod of metadataObj[key].modules) {
       mods.push({
@@ -485,16 +556,18 @@ function getChainModules(metadataObj: any): ChainModule[] {
   } else if (key === "V14") {
     const lookupVariantNames = (id: string) => {
       if (!id) return [];
-      const typeObj = metadataObj[key].lookup.types.find((v: any) => v.id === id);
+      const typeObj = metadataObj[key].lookup.types.find(
+        (v: any) => v.id === id
+      );
       return typeObj.type.def.Variant.variants.map((v: any) => v.name);
-    }
+    };
     for (const mod of metadataObj[key].pallets) {
       mods.push({
         name: mod.name,
         calls: lookupVariantNames(mod.calls?.type),
         errors: lookupVariantNames(mod.errors?.type),
         events: lookupVariantNames(mod.events?.type),
-      })
+      });
     }
   } else {
     throw new Error(`Unsupported metadata ${key}`);
@@ -508,36 +581,59 @@ interface ErrorInfo {
   message: string;
 }
 
-function lookupErrorInfo(metadataObj: any, dispatchErrorModule: any): ErrorInfo {
-  const key = Object.keys(metadataObj)[0]
+function lookupErrorInfo(
+  metadataObj: any,
+  dispatchErrorModule: any
+): ErrorInfo {
+  const key = Object.keys(metadataObj)[0];
   if (key === "V13") {
-    const module = metadataObj[key].modules.find((v: any) => v.index === dispatchErrorModule.index.toString());
+    const module = metadataObj[key].modules.find(
+      (v: any) => v.index === dispatchErrorModule.index.toString()
+    );
     const error = module.errors[dispatchErrorModule.error.toNumber()];
-    return { module: module.name, name: error.name, message: error.docs.join("").trim() };
+    return {
+      module: module.name,
+      name: error.name,
+      message: error.docs.join("").trim(),
+    };
   } else if (key === "V14") {
-    const module = metadataObj[key].pallets.find((v: any) => v.index === dispatchErrorModule.index.toString());
+    const module = metadataObj[key].pallets.find(
+      (v: any) => v.index === dispatchErrorModule.index.toString()
+    );
     const error = metadataObj[key].lookup.types
-      .find((v: any) => v.id === module.errors.type).type.def.Variant.variants
-      .find((v: any) => v.index === dispatchErrorModule.error.toString());
-    return { module: module.name, name: error.name, message:  error.docs.join("").trim() };
+      .find((v: any) => v.id === module.errors.type)
+      .type.def.Variant.variants.find(
+        (v: any) => v.index === dispatchErrorModule.error.toString()
+      );
+    return {
+      module: module.name,
+      name: error.name,
+      message: error.docs.join("").trim(),
+    };
   } else {
     throw new Error(`Unsupported metadata ${key}`);
   }
 }
 
-function mergeChainModule(mergeMods: ChainModule[], mods: ChainModule[]): ChainModule[] {
-  const names = mergeArr(mergeMods.map(v => v.name), mods.map(v => v.name));
+function mergeChainModule(
+  mergeMods: ChainModule[],
+  mods: ChainModule[]
+): ChainModule[] {
+  const names = mergeArr(
+    mergeMods.map((v) => v.name),
+    mods.map((v) => v.name)
+  );
   const output: ChainModule[] = [];
   for (const name of names) {
-    const mod1 = mergeMods.find(v => v.name === name);
-    const mod2 = mods.find(v => v.name === name);
+    const mod1 = mergeMods.find((v) => v.name === name);
+    const mod2 = mods.find((v) => v.name === name);
     if (mod1 && mod2) {
       output.push({
         name,
         calls: mergeArr(mod1.calls, mod2.calls),
         errors: mergeArr(mod1.errors, mod2.errors),
         events: mergeArr(mod1.events, mod2.events),
-      })
+      });
     } else if (mod1) {
       output.push(mod1);
     } else if (mod2) {
@@ -552,7 +648,7 @@ function mergeArr(array1: string[], array2: string[]) {
 }
 
 async function sleep(ms: number) {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 }
@@ -562,4 +658,4 @@ function formatIdx(idx: number, count: number) {
   return ("0".repeat(numDigits) + idx.toString()).slice(-1 * numDigits);
 }
 
-main().catch(err => console.error(err));
+main().catch((err) => console.error(err));

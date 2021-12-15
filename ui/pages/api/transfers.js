@@ -7,10 +7,7 @@ export default async function handler(req, res) {
   const [list, total] = await Promise.all([
     await prisma.chainTransfer.findMany({
       where: {
-        OR: [
-          { from: accountId },
-          { to: accountId },
-        ]
+        OR: [{ from: accountId }, { to: accountId }],
       },
       orderBy: { blockNum: "desc" },
       skip: (currentValue - 1) * pageSizeValue,
@@ -18,12 +15,9 @@ export default async function handler(req, res) {
     }),
     await prisma.chainTransfer.count({
       where: {
-        OR: [
-          { from: accountId },
-          { to: accountId },
-        ]
+        OR: [{ from: accountId }, { to: accountId }],
       },
     }),
   ]);
-  res.json({list, total})
+  res.json({ list, total });
 }
