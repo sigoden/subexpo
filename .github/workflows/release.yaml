@@ -18,10 +18,9 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: '16'
-      - run: |
-          yarn
-          yarn gen
-          yarn build
+      - run: yarn 
+      - run: yarn gen
+      - run: yarn build
       - name: Get tag
         id: get_tag
         shell: bash
@@ -59,10 +58,9 @@ jobs:
       - uses: actions/setup-node@v1
         with:
           node-version: '16'
-      - run: |
-          yarn
-          yarn gen
-          yarn build
+      - run: yarn 
+      - run: yarn gen
+      - run: yarn build
       - name: Get tag
         id: get_tag
         shell: bash
