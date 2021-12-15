@@ -45,7 +45,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./scanner
-          push: false
+          push: true
           tags: ${{ steps.get_tag.outputs.tag }}
 
   build-ui:
@@ -86,5 +86,5 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./ui
-          push: false
+          push: true
           tags: ${{ steps.get_tag.outputs.tag }}
