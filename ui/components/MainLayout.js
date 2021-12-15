@@ -1,36 +1,13 @@
 import React from "react";
-import { Layout, Menu, Grid } from "antd";
-const { Header, Content } = Layout;
+import { Layout, Grid } from "antd";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import SearchBar from "./SearchBar";
 import styles from "./MainLayout.module.css";
-import { useRouter } from "next/router";
 
-const navs = [
-  ["Blocks", "/blocks"],
-  ["Extrinsics", "/extrinsics"],
-  ["Events", "/events"],
-];
+const { Header, Content } = Layout;
 
-function Navs() {
-  const router = useRouter();
-  return (
-    <Menu 
-      className={styles.navs}
-      theme="dark"
-      mode="horizontal"
-      selectedKeys={navs.filter(v => router.pathname.startsWith(v[1])).map(v => v[1])}
-    >
-      {navs.map(([title, href]) => {
-          return (
-            <Menu.Item key={href}>
-              <Link href={href}>{title}</Link>
-            </Menu.Item>
-          );
-      })}
-    </Menu>
-  );
-}
+const Navs = dynamic(() => import("./Navs"), { ssr: false });
 
 export default function MainLayout({ children, noSearch }) {
   const { xs } = Grid.useBreakpoint();

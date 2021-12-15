@@ -1,8 +1,8 @@
 node_modules
 .vscode
 .env
-tmp
 .next
 dist
 *.log
-type.js
+/scanner/type.js
+/ui/type.js

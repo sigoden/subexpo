@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": "./src",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "declaration": false,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es6",
+    "sourceMap": false,
+    "lib": ["ES2018"],
+    "paths": {
+      "@polkadot/api/augment": ["./interfaces/augment-api.ts"],
+      "@polkadot/types/augment": ["./interfaces/augment-types.ts"],
+      "@polkadot/types/lookup": ["./interfaces/types-lookup.d.ts"]
+    },
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "tests/**/*", "scripts/**/*"]
+}

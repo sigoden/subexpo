@@ -4,33 +4,46 @@ Block explorer for Substrate based chain
 
 ## Development
 
-- Create .env
+### Setup .env
+setup .env follows .env.example
 ```
 DATABASE_URL="mysql://root:pass@localhost:3306/subexpo"
 ENDPOINT="ws://localhost:9944"
 ```
+cp .env scanner/.env
+cp .env ui/.env
 
-copy .env to ui/.env
+### setup type.js
+```
+module.exports = require("<your type defintions package>");
+```
 
-- Create type.js
+```sh
+cp type.js scanner/type.js
+cp type.js ui/type.js
 ```
-const { typesBundleForPolkadot  } = require("<your type defintions package>");
-module.exports = { typesBundle: typesBundleForPolkadot };
-```
-> Don't forget to install your package `npm i <your type defintions package>`
 
-- Start Scanner
-```
-yarn
+### Start mysql
+
+```sh
 docker-compose up -d
-yarn prisma db push
+cd scanner
+yarn
+yarn sql
+```
+
+### Start scanner
+```
+cd scanner
+yarn
+yarn gen
 yarn dev
 ```
 
-- Start UI
+### Start ui
 ```
 cd ui
 yarn
-yarn build
-yarn start
+yarn gen
+yarn dev
 ```

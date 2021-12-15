@@ -41,7 +41,11 @@ async function startChain() {
 
 async function createApi() {
   const provider = new WsProvider(process.env.ENDPOINT);
-  api = await ApiPromise.create({ provider, ...require("./type") })
+  let options = {};
+  try {
+    options = { ...require(process.env.TYPE_FILE || "../type") }
+  } catch {}
+  api = await ApiPromise.create({ provider, ...options })
   await api.isReady;
 }
 

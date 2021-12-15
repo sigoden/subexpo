@@ -1,8 +1,8 @@
 import { Row, Col } from "antd";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import styles from "./Args.module.css";
 import Balance from "./Balance";
-import dynamic from "next/dynamic";
 
 const LargeBytes = dynamic(() => import("./LargeBytes"), { ssr: false });
 
