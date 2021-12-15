@@ -2,7 +2,7 @@ FROM sigoden/node:native as builder
 WORKDIR /app
 COPY package.json yarn.lock ./
 COPY node_modules/.prisma/client/schema.prisma ./
-RUN yarn --production && yarn prisma generate && ln -s `pwd`/node_modules/.bin/prisma /usr/bin/
+RUN yarn --production && yarn prisma generate
 
 FROM sigoden/node:slim
 WORKDIR /app
