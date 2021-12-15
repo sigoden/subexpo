@@ -1,7 +1,5 @@
 {
   "compilerOptions": {
-    "outDir": "./dist",
-    "baseUrl": "./src",
     "module": "commonjs",
     "esModuleInterop": true,
     "declaration": false,
