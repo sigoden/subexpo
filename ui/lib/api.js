@@ -1,4 +1,4 @@
-const { ApiPromise, WsProvider } = require("@polkadot/api");
+import { ApiPromise, WsProvider } from "@polkadot/api";
 
 /**
  * @returns {ApiPromise}
@@ -6,11 +6,7 @@ const { ApiPromise, WsProvider } = require("@polkadot/api");
 export async function createApi() {
   if (global.api) return global.api;
   const provider = new WsProvider(process.env.ENDPOINT);
-  let options = {};
-  try {
-    options = { ...require(process.env.TYPE_FILE || "../type") };
-  } catch {}
-  const api = (global.api = await ApiPromise.create({ provider, ...options }));
+  const api = (global.api = await ApiPromise.create({ provider }));
   await api.isReady;
   return api;
 }
