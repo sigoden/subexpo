@@ -1,7 +1,7 @@
 import { Button, Col, Row, Tabs, Grid } from "antd";
 import { useRouter } from "next/router";
 
-import prisma from "../../lib/prisma";
+import getPrisma from "../../lib/prisma";
 import { createApi } from "../../lib/api";
 import MainLayout from "../../components/MainLayout";
 import SearchBar from "../../components/SearchBar";
@@ -14,8 +14,9 @@ import { useCallback, useState } from "react";
 const { TabPane } = Tabs;
 
 export async function getServerSideProps({ params }) {
-  const { id } = params;
+  const prisma = getPrisma();
   const api = await createApi();
+  const { id } = params;
   const accountInfo = await api.query.system.account(id);
   if (accountInfo) {
     const [extrinsics, extrinsicsCount, transfers, transfersCount] =

@@ -1,6 +1,7 @@
-import prisma from "../../lib/prisma";
+import getPrisma from "../../lib/prisma";
 
 export default async function handler(req, res) {
+  const prisma = getPrisma();
   const { current, pageSize, section, method, startDate, endDate, accountId } =
     req.query;
   const currentValue = parseInt(current) || 1;

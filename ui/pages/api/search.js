@@ -1,4 +1,3 @@
-import prisma from "../../lib/prisma";
 import { createApi } from "../../lib/api";
 
 export default async function handler(req, res) {
@@ -8,6 +7,7 @@ export default async function handler(req, res) {
 }
 
 async function detectKind(value) {
+  const prisma = getPrisma();
   if (typeof value !== "string") return "";
   if (value === "") return "";
   if (/^\d+$/.test(value)) {

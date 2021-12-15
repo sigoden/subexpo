@@ -1,6 +1,7 @@
-import prisma from "../../lib/prisma";
+import getPrisma from "../../lib/prisma";
 
 export default async function handler(req, res) {
+  const prisma = getPrisma();
   const [version, firstBlock] = await Promise.all([
     prisma.chainVersion.findFirst({
       orderBy: { specVersion: "desc" },

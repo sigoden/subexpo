@@ -9,5 +9,6 @@ ENV NODE_ENV production
 WORKDIR /app
 COPY --from=builder /app .
 COPY .next ./.next
-EXPOSE 3000
+EXPOSE 4000
+ENV PORT 4000
 CMD ["node_modules/.bin/next", "start"]

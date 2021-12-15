@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useCallback } from "react";
 
-import prisma from "../../lib/prisma";
+import getPrisma from "../../lib/prisma";
 import MainLayout from "../../components/MainLayout";
 import SearchBar from "../../components/SearchBar";
 import BlockInfo from "../../components/BlockInfo";
@@ -15,6 +15,7 @@ import styles from "./[id].module.css";
 const { TabPane } = Tabs;
 
 export async function getServerSideProps({ params }) {
+  const prisma = getPrisma();
   const { id } = params;
   if (typeof id === "string") {
     const blockNum = parseInt(id);

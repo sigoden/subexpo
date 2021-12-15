@@ -1,6 +1,6 @@
 import { Col, Row, Tabs } from "antd";
 
-import prisma from "../../lib/prisma";
+import getPrisma from "../../lib/prisma";
 import MainLayout from "../../components/MainLayout";
 import SearchBar from "../../components/SearchBar";
 import EventTable from "../../components/EventTable";
@@ -10,6 +10,7 @@ import styles from "./[id].module.css";
 const { TabPane } = Tabs;
 
 export async function getServerSideProps({ params }) {
+  const prisma = getPrisma();
   const { id } = params;
   if (typeof id === "string") {
     const where = /^\d+-\d+$/.test(id)
