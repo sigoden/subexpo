@@ -44,7 +44,6 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-          context: .
           push: false
           tags: ${{ steps.get_tag.outputs.tag }}
 
@@ -85,6 +84,5 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-          context: .
           push: false
           tags: ${{ steps.get_tag.outputs.tag }}
