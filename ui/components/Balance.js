@@ -1,11 +1,10 @@
 import { useRequest } from "ahooks";
-import { formatNum } from "../lib/utils";
+import { formatNum, loadJson } from "../lib/utils";
 
 export default function Balance({ balance }) {
-  const { data } = useRequest(
-    { url: "/api/tokeninfo" },
-    { cacheKey: "tokenInfo" }
-  );
+  const { data } = useRequest(() => loadJson("/api/tokeninfo"), {
+    cacheKey: "tokenInfo",
+  });
   if (data) {
     const tokenDecimals = parseInt(data.tokenDecimals[0]);
     let newBalance;

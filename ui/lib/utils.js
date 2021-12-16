@@ -72,3 +72,8 @@ export function formatNumIdx(numIdx) {
   const [num, idx] = numIdx.split("-");
   return formatNum(num) + "-" + idx;
 }
+
+export async function loadJson(url) {
+  const res = await fetch(url);
+  return res.json();
+}

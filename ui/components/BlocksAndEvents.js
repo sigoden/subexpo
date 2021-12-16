@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Row, Col, Button } from "antd";
 import { useRequest } from "ahooks";
 import Link from "next/link";
-import { formatNum, formatNumIdx } from "../lib/utils";
+import { formatNum, formatNumIdx, loadJson } from "../lib/utils";
 import TimeAgo from "./TimeAgo";
 import FinalizedStatus from "./FinializeStatus";
 import styles from "./BlocksAndEvents.module.css";
@@ -60,13 +60,10 @@ function Event({ section, method, eventId, extrinsicId }) {
 
 export default function BlocksAndEvents({ blocks, events }) {
   const [state, setState] = useState({ blocks, events });
-  const { data } = useRequest(
-    { url: "/api/pollinfo" },
-    {
-      pollingInterval: 2000,
-      pollingWhenHidden: false,
-    }
-  );
+  const { data } = useRequest(() => loadJson("/api/pollinfo"), {
+    pollingInterval: 2000,
+    pollingWhenHidden: false,
+  });
   useEffect(() => {
     if (Array.isArray(data?.blocks)) setState(data);
   }, [data]);

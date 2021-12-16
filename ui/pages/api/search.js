@@ -1,4 +1,5 @@
 import { createApi } from "../../lib/api";
+import getPrisma from "../../lib/prisma";
 
 export default async function handler(req, res) {
   const { q: value } = req.query;

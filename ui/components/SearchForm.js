@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import moment from "moment";
 import camelCase from "camelcase";
 import styles from "./SearchForm.module.css";
+import { loadJson } from "../lib/utils";
 
 const { RangePicker } = DatePicker;
 const { useBreakpoint } = Grid;
@@ -39,7 +40,9 @@ function getModules(modules, type) {
 export default function SearchForm({ kind }) {
   const [form] = Form.useForm();
   const screens = useBreakpoint();
-  const { data } = useRequest({ url: "/api/state" }, { cacheKey: "state" });
+  const { data } = useRequest(() => loadJson("/api/state"), {
+    cacheKey: "state",
+  });
   const router = useRouter();
   const modules = useMemo(() => getModules(data?.modules, kind), [data, kind]);
   const disableDate = useCallback(
