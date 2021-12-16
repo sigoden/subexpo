@@ -64,7 +64,7 @@ function ArgValue({ type, value }) {
     );
   } else if (/Balance/.test(type)) {
     return <Balance balance={value} />;
-  } else if (/AccountId/.test(value) || /LookupSource/.test(value)) {
+  } else if (/AccountId/.test(type) || /LookupSource/.test(type)) {
     return (
       <Link href={`/accounts/${value}`}>
         <a>{value}</a>

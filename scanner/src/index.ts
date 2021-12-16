@@ -17,16 +17,16 @@ import createDebug from "debug";
 import Heap from "heap-js";
 import pMap from "p-map";
 
-const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 10;
+const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 5;
 const TYPE_FILE = process.env.TYPE_FILE || "../type";
-const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 3000;
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 2000;
 const LARGE_BYTES_SIZE = parseInt(process.env.LARGE_BYTES_SIZE) || 65536; // 64k
 
 const debug = createDebug("subexpo");
 const prisma = new PrismaClient();
 const finalizedQueue = new Heap<number>();
 const newQueue = new Heap<number>();
-const addingSpecVersion = new Set<number>();
+let addingSpec;
 
 let api: ApiPromise;
 const chainSpecVersions = new Map<number, ChainVersion>();
@@ -193,7 +193,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
               data: { finalized: true },
             }),
           ]);
-          console.log(`FinalizeBlock: ${blockNum} ${blockHash}`);
+          log(`FinalizeBlock`, `${blockNum} ${blockHash}`);
         }
         return;
       } else {
@@ -378,13 +378,11 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         data: transfers,
       }),
     ]);
-    console.log(
-      `${isNew ? " CreateBlock " : " UpdateBlock "}: ${blockNum} ${blockHash}`
-    );
+    log(isNew ? " CreateBlock " : " UpdateBlock ", `${blockNum} ${blockHash}`);
   } catch (err: any) {
     if (/UniqueConstraintViolation/.test(err.message)) {
     } else {
-      console.log(` CreateBlock : ${blockNum} FAILED, ${err.message}`);
+      log(`CreateBlock`, `${blockNum} FAILED, ${err.message}`);
     }
   }
 }
@@ -434,9 +432,12 @@ function parseArg(
     if (arg.length > LARGE_BYTES_SIZE) {
       type = "Bytes:X";
       value = xxhashAsHex(arg, 128).toString().slice(2);
-      prisma.chainBytes
-        .create({ data: { hash: value, data: Buffer.from(arg.toU8a()) } })
-        .catch((err) => console.log(err));
+      (async () => {
+        log(`SaveLargeBytes`, value);
+        await prisma.chainBytes.create({
+          data: { hash: value, data: Buffer.from(arg.toU8a()) },
+        });
+      })();
     }
   }
   return { name, type, value: value || arg.toString() };
@@ -491,8 +492,8 @@ function parseEventData(
     }
     if (typeName === "T::AccountId") {
       type = "AccountId";
-    } else if (typeName === "T::BalanceId") {
-      type == "Balance";
+    } else if (typeName === "T::Balance") {
+      type = "Balance";
     }
     return {
       type,
@@ -561,7 +562,7 @@ function lookupErrorInfo(
 }
 
 async function addSpecVersion(blockHash: BlockHash, specVersion: number) {
-  if (addingSpecVersion.has(specVersion)) {
+  if (addingSpec && Date.now() - addingSpec < 30000) {
     debug(`wating spec ${specVersion}`);
     let retry = 30;
     while (true) {
@@ -573,7 +574,7 @@ async function addSpecVersion(blockHash: BlockHash, specVersion: number) {
     }
   }
   debug(`adding spec ${specVersion} at ${blockHash.toHex()}`);
-  addingSpecVersion.add(specVersion);
+  addingSpec = Date.now();
   const chainMetadata = await api.rpc.state.getMetadata(blockHash);
   const lastChainVersion = await prisma.chainVersion.findFirst({
     orderBy: { specVersion: "desc" },
@@ -598,7 +599,7 @@ async function addSpecVersion(blockHash: BlockHash, specVersion: number) {
     rawData: metadata,
   } as ChainVersion;
   chainSpecVersions.set(specVersion, version);
-  console.log(`  SaveBlock  : ${specVersion}`);
+  log(`SaveSpec`, specVersion.toString());
   await prisma.chainVersion.create({
     data: version,
   });
@@ -687,6 +688,10 @@ async function sleep(ms: number) {
 function formatIdx(idx: number, count: number) {
   const numDigits = (count - 1).toString().length;
   return ("0".repeat(numDigits) + idx.toString()).slice(-1 * numDigits);
+}
+
+function log(topic: string, message: string) {
+  console.log(topic, message);
 }
 
 main().catch((err) => console.error(err));
