@@ -7,23 +7,26 @@ import {
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import {
   Call,
-  CodecHash,
-  FunctionArgumentMetadataV9,
+  BlockHash,
+  FunctionArgumentMetadataLatest,
   DispatchError,
   Event,
 } from "@polkadot/types/interfaces";
+import { xxhashAsHex, cryptoWaitReady } from "@polkadot/util-crypto";
 import createDebug from "debug";
 import Heap from "heap-js";
 import pMap from "p-map";
 
 const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 10;
 const TYPE_FILE = process.env.TYPE_FILE || "../type";
-const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 5000;
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 3000;
+const LARGE_BYTES_SIZE = parseInt(process.env.LARGE_BYTES_SIZE) || 65536; // 64k
 
 const debug = createDebug("subexpo");
 const prisma = new PrismaClient();
 const finalizedQueue = new Heap<number>();
 const newQueue = new Heap<number>();
+const addingSpecVersion = new Set<number>();
 
 let api: ApiPromise;
 const chainSpecVersions = new Map<number, ChainVersion>();
@@ -57,7 +60,7 @@ async function createApi() {
     debug(`not load type file`);
   }
   api = await ApiPromise.create({ provider, ...options });
-  await api.isReady;
+  await Promise.all([cryptoWaitReady(), api.isReady]);
   debug(`polkdaot api is ready`);
 }
 
@@ -174,6 +177,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       where: { blockNum },
     });
     if (chainBlock) {
+      debug(`block ${blockNum} exists`);
       if (
         chainBlock.blockHash === blockHash.toHex() &&
         mode !== SaveBlockMode.Force
@@ -193,6 +197,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         }
         return;
       } else {
+        debug(`delete block ${blockNum}`);
         await prisma.chainBlock.delete({ where: { blockNum } });
         isNew = false;
       }
@@ -218,6 +223,8 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
     if (!chainVersion) {
       chainVersion = await addSpecVersion(blockHash, blockSpecVersion);
     }
+
+    debug(`block ${blockNum}: parsing`);
     const events: ChainEvent[] = [];
     const transfers: ChainTransfer[] = [];
     let extrinsicError: any;
@@ -227,6 +234,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         isSigned,
         method: { method, section },
       } = ex;
+      debug(`block ${blockNum}: parse extrinsic ${section}.${method}`);
 
       if (section === "timestamp" && method === "set") {
         blockAt = Math.floor(parseInt(ex.args[0].toString()) / 1000);
@@ -246,6 +254,8 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       let success = true;
       exEvents.forEach(({ record, recordIndex }) => {
         const { event } = record;
+        const { section, method } = event;
+        debug(`block ${blockNum}: parse event ${section}.${method}`);
         if (api.events.system.ExtrinsicFailed.is(event)) {
           success = false;
           const dispatchError = event.data[0] as unknown as DispatchError;
@@ -253,7 +263,6 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
           return;
         }
 
-        const { section, method } = event;
         if (section === "system" && method === "ExtrinsicSuccess") {
           return;
         }
@@ -265,7 +274,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
           section,
           method,
           accountId: isSigned ? ex.signer.toString() : null,
-          data: parseEventData(event, chainVersion),
+          data: parseEventData(event, chainVersion) as any,
         });
       });
       const extrinsicId = `${blockNum}-${formatIdx(exIndex, extrinsicsCount)}`;
@@ -324,7 +333,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
           section,
           method,
           accountId: null,
-          data: parseEventData(event, chainVersion),
+          data: parseEventData(event, chainVersion) as any,
         });
       });
 
@@ -351,6 +360,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       validator: extHeader?.author?.toString() || "",
       finalized,
     };
+    debug(`block ${blockNum}: ready to write db`);
     await prisma.$transaction([
       prisma.chainBlock.create({
         data: block,
@@ -411,19 +421,25 @@ interface ParsedArg {
 function parseArg(
   calls: Set<string>,
   arg: any,
-  argMeta: FunctionArgumentMetadataV9
+  argMeta: FunctionArgumentMetadataLatest
 ): ParsedArg {
   const name = argMeta.name.toString();
-  const type = argMeta.type.toString();
+  let type = argMeta.type.toString();
   let value;
   if (type === "Call") {
     value = parseCallArg(calls, arg as Call);
   } else if (type === "Vec<Call>") {
     value = (arg as Call[]).map((call) => parseCallArg(calls, call));
-  } else {
-    value = arg.toString();
+  } else if (type === "Bytes") {
+    if (arg.length > LARGE_BYTES_SIZE) {
+      type = "Bytes:X";
+      value = xxhashAsHex(arg, 128).toString().slice(2);
+      prisma.chainBytes
+        .create({ data: { hash: value, data: Buffer.from(arg.toU8a()) } })
+        .catch((err) => console.log(err));
+    }
   }
-  return { name, type, value };
+  return { name, type, value: value || arg.toString() };
 }
 
 interface ParsedCallArg {
@@ -443,10 +459,19 @@ function parseCallArg(calls: Set<string>, call: Call): ParsedCallArg {
   };
 }
 
-function parseEventData(event: Event, chainVersion: ChainVersion): any {
+interface ParsedEventData {
+  type: string;
+  value: string;
+}
+
+function parseEventData(
+  event: Event,
+  chainVersion: ChainVersion
+): ParsedEventData[] {
   const { data, meta } = event;
   return data.map((arg, index) => {
     let type = meta.args[index].toString();
+    const typeName = meta.fields[index].typeName.toString();
     if (type.startsWith('{"_enum":{"Other":"Null"')) {
       type = "DispatchError";
     }
@@ -463,6 +488,11 @@ function parseEventData(event: Event, chainVersion: ChainVersion): any {
           value: JSON.stringify(errorInfo),
         };
       }
+    }
+    if (typeName === "T::AccountId") {
+      type = "AccountId";
+    } else if (typeName === "T::BalanceId") {
+      type == "Balance";
     }
     return {
       type,
@@ -530,21 +560,27 @@ function lookupErrorInfo(
   }
 }
 
-async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
-  let version = await prisma.chainVersion.findUnique({
-    where: { specVersion },
-  });
-  if (version) {
-    chainSpecVersions.set(specVersion, version);
-    return version;
+async function addSpecVersion(blockHash: BlockHash, specVersion: number) {
+  if (addingSpecVersion.has(specVersion)) {
+    debug(`wating spec ${specVersion}`);
+    let retry = 30;
+    while (true) {
+      const version = chainSpecVersions.get(specVersion);
+      if (version) return version;
+      await sleep(1000 + (Math.random() - 0.5) * 100);
+      retry--;
+      if (retry === 0) return addSpecVersion(blockHash, specVersion);
+    }
   }
-  const [chainMetadata, lastChainVersion] = await Promise.all([
-    api.rpc.state.getMetadata(blockHash),
-    prisma.chainVersion.findFirst({ orderBy: { specVersion: "desc" } }),
-  ]);
+  debug(`adding spec ${specVersion} at ${blockHash.toHex()}`);
+  addingSpecVersion.add(specVersion);
+  const chainMetadata = await api.rpc.state.getMetadata(blockHash);
+  const lastChainVersion = await prisma.chainVersion.findFirst({
+    orderBy: { specVersion: "desc" },
+  });
   if (lastChainVersion?.specVersion === specVersion) {
-    chainSpecVersions.set(specVersion, version);
-    return version;
+    chainSpecVersions.set(specVersion, lastChainVersion);
+    return lastChainVersion;
   }
   const metadata = chainMetadata.toHuman().metadata as any;
   const modules = getChainModules(metadata);
@@ -554,23 +590,18 @@ async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
         modules
       )
     : modules;
-  try {
-    version = await prisma.chainVersion.upsert({
-      where: { specVersion },
-      update: {},
-      create: {
-        specVersion,
-        modules: modules as any,
-        mergedModules: mergedModules as any,
-        rawData: metadata,
-      },
-    });
-  } catch (err) {
-    const version = chainSpecVersions.get(specVersion);
-    if (version) return chainSpecVersions.get(specVersion);
-    throw err;
-  }
+
+  debug(`saving spec ${specVersion}`);
+  const version = {
+    specVersion,
+    modules: modules as any,
+    mergedModules: mergedModules as any,
+    rawData: metadata,
+  } as ChainVersion;
   chainSpecVersions.set(specVersion, version);
+  prisma.chainVersion.create({
+    data: version,
+  });
   return version;
 }
 

@@ -98,3 +98,8 @@ model ChainTransfer {
   @@index([to])
   @@index([blockNum])
 }
+
+model ChainBytes {
+  hash String @id
+  data Bytes
+}
