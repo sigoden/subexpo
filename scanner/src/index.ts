@@ -591,7 +591,6 @@ async function addSpecVersion(blockHash: BlockHash, specVersion: number) {
       )
     : modules;
 
-  debug(`saving spec ${specVersion}`);
   const version = {
     specVersion,
     modules: modules as any,
@@ -599,7 +598,8 @@ async function addSpecVersion(blockHash: BlockHash, specVersion: number) {
     rawData: metadata,
   } as ChainVersion;
   chainSpecVersions.set(specVersion, version);
-  prisma.chainVersion.create({
+  console.log(`  SaveBlock  : ${specVersion}`);
+  await prisma.chainVersion.create({
     data: version,
   });
   return version;
