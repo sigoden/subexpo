@@ -13,9 +13,9 @@ import {
   Event,
 } from "@polkadot/types/interfaces";
 import { xxhashAsHex, cryptoWaitReady } from "@polkadot/util-crypto";
+import PQueue from "p-queue";
 import createDebug from "debug";
 import Heap from "heap-js";
-import pMap from "p-map";
 
 const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 5;
 const TYPE_FILE = process.env.TYPE_FILE || "../type";
@@ -44,9 +44,10 @@ async function main() {
 async function boostrap() {
   await createApi();
   await loadChainVersions();
+  await waitingChain();
+  await syncBlocks();
   runFinalizedQueue();
   runNewQueue();
-  await syncBlocks();
   listenBlocks();
 }
 
@@ -76,10 +77,12 @@ async function syncBlocks() {
   debug(`syncing blocks`);
   const finalizedBlockNum = await getFinalizedBlockNum();
   const start = syncBlockNum;
-  const end = Math.min(syncBlockNum + BATCH_SIZE, finalizedBlockNum + 1);
+  const end = Math.min(syncBlockNum + BATCH_SIZE, finalizedBlockNum);
   const blockNums = await getMissBlocks(start, end);
   if (blockNums.length > 0) {
     syncBlockNum = await batchSaveBlocks(blockNums);
+  } else {
+    syncBlockNum = end;
   }
   if (syncBlockNum < finalizedBlockNum) {
     return syncBlocks();
@@ -111,9 +114,36 @@ async function batchSaveBlocks(blockNums: number[]): Promise<number> {
     await saveBlock(blockNum, SaveBlockMode.Sync);
     maxBlockNum = Math.max(blockNum, maxBlockNum);
   };
-  await pMap(blockNums, saveBlockNum, { concurrency: CONCURRENCY });
+  const queue = new PQueue({ concurrency: CONCURRENCY, timeout: 90000 });
+  blockNums.map((v) => queue.add(() => saveBlockNum(v)));
+  await queue.onIdle();
   debug(`batch saved ${blockNums.length} blocks`);
   return maxBlockNum;
+}
+
+async function waitingChain() {
+  while (true) {
+    try {
+      const [{ isSyncing }, header] = await Promise.all([
+        api.rpc.system.health(),
+        api.rpc.chain.getHeader(),
+      ]);
+      log("WaitingChain", `syncing ${header.number.toString()}`);
+      if (isSyncing.isFalse) {
+        await sleep(1000);
+        const header2 = await api.rpc.chain.getHeader();
+        if (header2.number.eq(header.number)) {
+          await sleep(6000);
+          const header3 = await api.rpc.chain.getHeader();
+          if (header3.number.toNumber() > header.number.toNumber()) {
+            break;
+          }
+        }
+      }
+    } catch {}
+    await sleep(3000);
+  }
+  log("WaitingChain", "success");
 }
 
 async function runFinalizedQueue() {
@@ -153,11 +183,9 @@ function listenBlocks() {
 }
 
 async function getFinalizedBlockNum() {
-  const finalizedBlockHash = await api.rpc.chain.getFinalizedHead();
-  const finalizedBlockHeader = await api.rpc.chain.getHeader(
-    finalizedBlockHash
-  );
-  return finalizedBlockHeader.number.toNumber();
+  const blockHash = await api.rpc.chain.getFinalizedHead();
+  const header = await api.rpc.chain.getHeader(blockHash);
+  return header.number.toNumber();
 }
 
 enum SaveBlockMode {
