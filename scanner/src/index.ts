@@ -10,6 +10,7 @@ import {
   CodecHash,
   FunctionArgumentMetadataV9,
   DispatchError,
+  Event,
 } from "@polkadot/types/interfaces";
 import createDebug from "debug";
 import Heap from "heap-js";
@@ -247,52 +248,15 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         const { event } = record;
         if (api.events.system.ExtrinsicFailed.is(event)) {
           success = false;
-          const dispatchError = event.data[0];
-          if (dispatchError.isModule) {
-            const dispatchErrorModule = event.data[0].asModule;
-            extrinsicError = lookupErrorInfo(
-              chainVersion.rawData as any,
-              dispatchErrorModule
-            );
-          } else {
-            const dispatchErrorObj = dispatchError.toHuman() as any;
-            const name =
-              typeof dispatchErrorObj === "string"
-                ? dispatchErrorObj
-                : dispatchErrorObj[Object.keys(dispatchErrorObj)[0]];
-            extrinsicError = { module: "", name, message: "" };
-          }
+          const dispatchError = event.data[0] as unknown as DispatchError;
+          extrinsicError = parseExtrinsicError(dispatchError, chainVersion);
           return;
         }
 
-        const { data, section, meta, method } = event;
+        const { section, method } = event;
         if (section === "system" && method === "ExtrinsicSuccess") {
           return;
         }
-        const eventData = data.map((arg, index) => {
-          let type = meta.args[index].toString();
-          if (type.startsWith('{"_enum":{"Other":"Null"')) {
-            type = "DispatchError";
-          }
-          if (type === "DispatchError") {
-            const arg_: DispatchError = arg as DispatchError;
-            if (arg_.isModule) {
-              const dispatchErrorModule = arg_.asModule;
-              const errorInfo = lookupErrorInfo(
-                chainVersion.rawData as any,
-                dispatchErrorModule
-              );
-              value: return {
-                type,
-                value: JSON.stringify(errorInfo),
-              };
-            }
-          }
-          return {
-            type,
-            value: arg.toString(),
-          };
-        });
         events.push({
           eventId: `${blockNum}-${formatIdx(recordIndex, records.length)}`,
           blockNum,
@@ -301,7 +265,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
           section,
           method,
           accountId: isSigned ? ex.signer.toString() : null,
-          data: eventData as any,
+          data: parseEventData(event, chainVersion),
         });
       });
       const extrinsicId = `${blockNum}-${formatIdx(exIndex, extrinsicsCount)}`;
@@ -351,13 +315,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       .filter(({ record: { phase } }) => !phase.isApplyExtrinsic)
       .forEach(({ record, recordIndex }) => {
         const { event } = record;
-        const { data, section, meta, method } = event;
-        const eventData = data.map((arg, index) => {
-          return {
-            type: meta.args[index].toString(),
-            value: arg.toString(),
-          };
-        });
+        const { section, method } = event;
         events.push({
           eventId: `${blockNum}-${formatIdx(recordIndex, records.length)}`,
           blockNum,
@@ -366,7 +324,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
           section,
           method,
           accountId: null,
-          data: eventData as any,
+          data: parseEventData(event, chainVersion),
         });
       });
 
@@ -485,6 +443,93 @@ function parseCallArg(calls: Set<string>, call: Call): ParsedCallArg {
   };
 }
 
+function parseEventData(event: Event, chainVersion: ChainVersion): any {
+  const { data, meta } = event;
+  return data.map((arg, index) => {
+    let type = meta.args[index].toString();
+    if (type.startsWith('{"_enum":{"Other":"Null"')) {
+      type = "DispatchError";
+    }
+    if (type === "DispatchError") {
+      const arg_: DispatchError = arg as DispatchError;
+      if (arg_.isModule) {
+        const dispatchErrorModule = arg_.asModule;
+        const errorInfo = lookupErrorInfo(
+          chainVersion.rawData as any,
+          dispatchErrorModule
+        );
+        value: return {
+          type,
+          value: JSON.stringify(errorInfo),
+        };
+      }
+    }
+    return {
+      type,
+      value: arg.toString(),
+    };
+  });
+}
+
+interface ExtrinisicError {
+  module: string;
+  name: string;
+  message: string;
+}
+
+function parseExtrinsicError(
+  dispatchError: DispatchError,
+  chainVersion: ChainVersion
+) {
+  let result: ExtrinisicError;
+  if (dispatchError.isModule) {
+    const dispatchErrorModule = dispatchError.asModule;
+    result = lookupErrorInfo(chainVersion.rawData as any, dispatchErrorModule);
+  } else {
+    const dispatchErrorObj = dispatchError.toHuman() as any;
+    const name =
+      typeof dispatchErrorObj === "string"
+        ? dispatchErrorObj
+        : dispatchErrorObj[Object.keys(dispatchErrorObj)[0]];
+    result = { module: "", name, message: "" };
+  }
+  return result;
+}
+
+function lookupErrorInfo(
+  metadataObj: any,
+  dispatchErrorModule: any
+): ExtrinisicError {
+  const key = Object.keys(metadataObj)[0];
+  if (key === "V13") {
+    const module = metadataObj[key].modules.find(
+      (v: any) => v.index === dispatchErrorModule.index.toString()
+    );
+    const error = module.errors[dispatchErrorModule.error.toNumber()];
+    return {
+      module: module.name,
+      name: error.name,
+      message: error.docs.join("").trim(),
+    };
+  } else if (key === "V14") {
+    const module = metadataObj[key].pallets.find(
+      (v: any) => v.index === dispatchErrorModule.index.toString()
+    );
+    const error = metadataObj[key].lookup.types
+      .find((v: any) => v.id === module.errors.type)
+      .type.def.Variant.variants.find(
+        (v: any) => v.index === dispatchErrorModule.error.toString()
+      );
+    return {
+      module: module.name,
+      name: error.name,
+      message: error.docs.join("").trim(),
+    };
+  } else {
+    throw new Error(`Unsupported metadata ${key}`);
+  }
+}
+
 async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
   let version = await prisma.chainVersion.findUnique({
     where: { specVersion },
@@ -509,16 +554,22 @@ async function addSpecVersion(blockHash: CodecHash, specVersion: number) {
         modules
       )
     : modules;
-  version = await prisma.chainVersion.upsert({
-    where: { specVersion },
-    update: {},
-    create: {
-      specVersion,
-      modules: modules as any,
-      mergedModules: mergedModules as any,
-      rawData: metadata,
-    },
-  });
+  try {
+    version = await prisma.chainVersion.upsert({
+      where: { specVersion },
+      update: {},
+      create: {
+        specVersion,
+        modules: modules as any,
+        mergedModules: mergedModules as any,
+        rawData: metadata,
+      },
+    });
+  } catch (err) {
+    const version = chainSpecVersions.get(specVersion);
+    if (version) return chainSpecVersions.get(specVersion);
+    throw err;
+  }
   chainSpecVersions.set(specVersion, version);
   return version;
 }
@@ -562,46 +613,6 @@ function getChainModules(metadataObj: any): ChainModule[] {
     throw new Error(`Unsupported metadata ${key}`);
   }
   return mods;
-}
-
-interface ErrorInfo {
-  module: string;
-  name: string;
-  message: string;
-}
-
-function lookupErrorInfo(
-  metadataObj: any,
-  dispatchErrorModule: any
-): ErrorInfo {
-  const key = Object.keys(metadataObj)[0];
-  if (key === "V13") {
-    const module = metadataObj[key].modules.find(
-      (v: any) => v.index === dispatchErrorModule.index.toString()
-    );
-    const error = module.errors[dispatchErrorModule.error.toNumber()];
-    return {
-      module: module.name,
-      name: error.name,
-      message: error.docs.join("").trim(),
-    };
-  } else if (key === "V14") {
-    const module = metadataObj[key].pallets.find(
-      (v: any) => v.index === dispatchErrorModule.index.toString()
-    );
-    const error = metadataObj[key].lookup.types
-      .find((v: any) => v.id === module.errors.type)
-      .type.def.Variant.variants.find(
-        (v: any) => v.index === dispatchErrorModule.error.toString()
-      );
-    return {
-      module: module.name,
-      name: error.name,
-      message: error.docs.join("").trim(),
-    };
-  } else {
-    throw new Error(`Unsupported metadata ${key}`);
-  }
 }
 
 function mergeChainModule(
