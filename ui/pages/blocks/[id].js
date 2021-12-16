@@ -17,20 +17,18 @@ const { TabPane } = Tabs;
 export async function getServerSideProps({ params }) {
   const prisma = getPrisma();
   const { id } = params;
-  if (typeof id === "string") {
-    const blockNum = parseInt(id);
-    const where = blockNum > -1 ? { blockNum } : { blockHash: id };
-    const block = await prisma.chainBlock.findFirst({ where });
-    if (block) {
-      const [extrinsics, events, logs] = await Promise.all([
-        prisma.chainExtrinsic.findMany({ where: { blockNum: block.blockNum } }),
-        block.eventsCount
-          ? prisma.chainEvent.findMany({ where: { blockNum: block.blockNum } })
-          : Promise.resolve([]),
-        prisma.chainLog.findMany({ where: { blockNum: block.blockNum } }),
-      ]);
-      return { props: { block, extrinsics, events, logs } };
-    }
+  const blockNum = parseInt(id);
+  const where = blockNum > -1 ? { blockNum } : { blockHash: id };
+  const block = await prisma.chainBlock.findFirst({ where });
+  if (block) {
+    const [extrinsics, events, logs] = await Promise.all([
+      prisma.chainExtrinsic.findMany({ where: { blockNum: block.blockNum } }),
+      block.eventsCount
+        ? prisma.chainEvent.findMany({ where: { blockNum: block.blockNum } })
+        : Promise.resolve([]),
+      prisma.chainLog.findMany({ where: { blockNum: block.blockNum } }),
+    ]);
+    return { props: { block, extrinsics, events, logs } };
   }
   return { notFound: true };
 }

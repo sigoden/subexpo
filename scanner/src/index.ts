@@ -422,7 +422,9 @@ function parseArg(
   argMeta: FunctionArgumentMetadataLatest
 ): ParsedArg {
   const name = argMeta.name.toString();
-  let type = argMeta.type.toString();
+  let type =
+    detectSpecialType(argMeta.typeName.toString()) || argMeta.type.toString();
+
   let value;
   if (type === "Call") {
     value = parseCallArg(calls, arg as Call);
@@ -490,13 +492,8 @@ function parseEventData(
         };
       }
     }
-    if (typeName === "T::AccountId") {
-      type = "AccountId";
-    } else if (typeName === "T::Balance") {
-      type = "Balance";
-    }
     return {
-      type,
+      type: detectSpecialType(typeName) || type,
       value: arg.toString(),
     };
   });
@@ -688,6 +685,20 @@ async function sleep(ms: number) {
 function formatIdx(idx: number, count: number) {
   const numDigits = (count - 1).toString().length;
   return ("0".repeat(numDigits) + idx.toString()).slice(-1 * numDigits);
+}
+
+function detectSpecialType(typeName: string): string {
+  const types = ["Balance", "AccountId", "BlockNumber"];
+  if (!types.find((v) => typeName.includes(v))) return;
+  if (/^Option<.+>/.test(typeName)) typeName = typeName.slice(7, -1);
+  if (/<T>$/.test(typeName)) typeName = typeName.slice(0, -3);
+  if (/<T as .+>::$/.test(typeName))
+    typeName = typeName.replace(/<T as .+>::$/, "");
+  if (/<T, I>$/.test(typeName)) typeName = typeName.slice(0, -6);
+  if (/^T::/.test(typeName)) typeName = typeName.slice(3);
+  if (/Of$/.test(typeName)) typeName = typeName.slice(0, -2);
+  if (/For$/.test(typeName)) typeName = typeName.slice(0, -3);
+  if (types.includes(typeName)) return typeName;
 }
 
 function log(topic: string, message: string) {

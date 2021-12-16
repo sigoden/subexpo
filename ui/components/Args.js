@@ -62,11 +62,17 @@ function ArgValue({ type, value }) {
         ))}
       </div>
     );
-  } else if (/Balance/.test(type)) {
+  } else if (type === "Balance") {
     return <Balance balance={value} />;
-  } else if (/AccountId/.test(type) || /LookupSource/.test(type)) {
+  } else if (type === "AccountId" || type === "MultiAddress") {
     return (
       <Link href={`/accounts/${value}`}>
+        <a>{value}</a>
+      </Link>
+    );
+  } else if (type === "BlockNumber") {
+    return (
+      <Link href={`/blocks/${value}`}>
         <a>{value}</a>
       </Link>
     );
