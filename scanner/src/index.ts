@@ -5,6 +5,7 @@ import {
   ChainTransfer,
 } from "@prisma/client";
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { HttpProvider } from "@polkadot/rpc-provider";
 import {
   Call,
   BlockHash,
@@ -13,38 +14,39 @@ import {
   Event,
 } from "@polkadot/types/interfaces";
 import { xxhashAsHex, cryptoWaitReady } from "@polkadot/util-crypto";
+import { EventEmitter } from "events";
 import PQueue from "p-queue";
-import createDebug from "debug";
+import pEvent from "p-event";
 import Heap from "heap-js";
 
-const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 5;
+const ENDPOINT = process.env.ENDPOINT || "ws://localhost:9944";
+const ENDPOINT_RPC = process.env.ENDPOINT_RPC || "http://localhost:9933";
+const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 10;
 const TYPE_FILE = process.env.TYPE_FILE || "../type";
-const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 2000;
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 6000;
 const LARGE_BYTES_SIZE = parseInt(process.env.LARGE_BYTES_SIZE) || 65536; // 64k
 
-const debug = createDebug("subexpo");
+const emitter = new EventEmitter();
 const prisma = new PrismaClient();
 const finalizedQueue = new Heap<number>();
 const newQueue = new Heap<number>();
-let addingSpec;
 
-let api: ApiPromise;
+let apiWs: ApiPromise;
+let apiRpc: ApiPromise;
 const chainSpecVersions = new Map<number, ChainVersion>();
 let syncBlockNum = 0;
+let loadingSpecAt = 0;
 
 async function main() {
-  if (process.env.DEBUG_BLOCK) {
-    debug(`test block ${process.env.DEBUG_BLOCK}`);
-    await testBlock(parseInt(process.env.DEBUG_BLOCK));
-  } else {
-    await boostrap();
-  }
-}
-
-async function boostrap() {
   await createApi();
+  if (process.env.DEBUG_BLOCK) {
+    await saveBlock(parseInt(process.env.DEBUG_BLOCK), SaveBlockMode.Force);
+    process.exit(0);
+  }
   await loadChainVersions();
-  await waitingChain();
+  setInterval(() => {
+    console.log("Tick");
+  }, 10000);
   await syncBlocks();
   runFinalizedQueue();
   runNewQueue();
@@ -52,17 +54,20 @@ async function boostrap() {
 }
 
 async function createApi() {
-  const provider = new WsProvider(process.env.ENDPOINT);
+  const providerWs = new WsProvider(ENDPOINT);
+  const providerRpc = new HttpProvider(ENDPOINT_RPC);
   let options = {};
   try {
     options = { ...require(TYPE_FILE) };
-    debug(`load type file`);
+    log(`UseTypes`, "yes");
   } catch {
-    debug(`not load type file`);
+    log(`UseTypes`, "no");
   }
-  api = await ApiPromise.create({ provider, ...options });
-  await Promise.all([cryptoWaitReady(), api.isReady]);
-  debug(`polkdaot api is ready`);
+  [apiWs, apiRpc] = await Promise.all([
+    ApiPromise.create({ provider: providerWs, ...options }),
+    ApiPromise.create({ provider: providerRpc, ...options }),
+  ]);
+  await Promise.all([cryptoWaitReady(), apiWs.isReady, apiRpc.isReady]);
 }
 
 async function loadChainVersions() {
@@ -70,24 +75,23 @@ async function loadChainVersions() {
   for (const chainVersion of chainVersions) {
     chainSpecVersions.set(chainVersion.specVersion, chainVersion);
   }
-  debug(`loaded chain versions`);
 }
 
 async function syncBlocks() {
-  debug(`syncing blocks`);
-  const finalizedBlockNum = await getFinalizedBlockNum();
+  const latestBlockNum = (
+    await apiWs.derive.chain.bestNumberFinalized()
+  ).toNumber();
   const start = syncBlockNum;
-  const end = Math.min(syncBlockNum + BATCH_SIZE, finalizedBlockNum);
+  const end = Math.min(syncBlockNum + BATCH_SIZE, latestBlockNum);
   const blockNums = await getMissBlocks(start, end);
+  log(`SyncBlocks`, `${blockNums.length} blocks from ${start} to ${end}`);
   if (blockNums.length > 0) {
-    syncBlockNum = await batchSaveBlocks(blockNums);
-  } else {
-    syncBlockNum = end;
+    await batchSaveBlocks(blockNums);
   }
-  if (syncBlockNum < finalizedBlockNum) {
+  syncBlockNum = end - 1;
+  if (syncBlockNum < latestBlockNum) {
     return syncBlocks();
   }
-  debug(`synced blocks`);
 }
 
 async function getMissBlocks(start: number, end: number) {
@@ -103,47 +107,16 @@ async function getMissBlocks(start: number, end: number) {
   for (let i = start; i < end; i++) {
     if (!blockNums.has(i)) result.push(i);
   }
-  debug(`miss ${result.length} blocks from ${start} to ${end}`);
   return result;
 }
 
-async function batchSaveBlocks(blockNums: number[]): Promise<number> {
-  debug(`batch saving ${blockNums.length} blocks`);
-  let maxBlockNum = 0;
+async function batchSaveBlocks(blockNums: number[]) {
   const saveBlockNum = async (blockNum: number) => {
     await saveBlock(blockNum, SaveBlockMode.Sync);
-    maxBlockNum = Math.max(blockNum, maxBlockNum);
   };
   const queue = new PQueue({ concurrency: CONCURRENCY, timeout: 90000 });
   blockNums.map((v) => queue.add(() => saveBlockNum(v)));
   await queue.onIdle();
-  debug(`batch saved ${blockNums.length} blocks`);
-  return maxBlockNum;
-}
-
-async function waitingChain() {
-  while (true) {
-    try {
-      const [{ isSyncing }, header] = await Promise.all([
-        api.rpc.system.health(),
-        api.rpc.chain.getHeader(),
-      ]);
-      log("WaitingChain", `syncing ${header.number.toString()}`);
-      if (isSyncing.isFalse) {
-        await sleep(1000);
-        const header2 = await api.rpc.chain.getHeader();
-        if (header2.number.eq(header.number)) {
-          await sleep(6000);
-          const header3 = await api.rpc.chain.getHeader();
-          if (header3.number.toNumber() > header.number.toNumber()) {
-            break;
-          }
-        }
-      }
-    } catch {}
-    await sleep(3000);
-  }
-  log("WaitingChain", "success");
 }
 
 async function runFinalizedQueue() {
@@ -173,19 +146,12 @@ async function runNewQueue() {
 }
 
 function listenBlocks() {
-  debug(`listening blocks`);
-  api.rpc.chain.subscribeFinalizedHeads((header) => {
+  apiWs.rpc.chain.subscribeFinalizedHeads((header) => {
     finalizedQueue.push(header.number.toNumber());
   });
-  api.rpc.chain.subscribeNewHeads((header) => {
+  apiWs.rpc.chain.subscribeNewHeads((header) => {
     newQueue.push(header.number.toNumber());
   });
-}
-
-async function getFinalizedBlockNum() {
-  const blockHash = await api.rpc.chain.getFinalizedHead();
-  const header = await api.rpc.chain.getHeader(blockHash);
-  return header.number.toNumber();
 }
 
 enum SaveBlockMode {
@@ -196,63 +162,62 @@ enum SaveBlockMode {
 }
 
 async function saveBlock(blockNum: number, mode: SaveBlockMode) {
-  debug(`saving block ${blockNum} in mode ${mode}`);
-  const blockHash = await api.rpc.chain.getBlockHash(blockNum);
+  const blockHash = await apiRpc.rpc.chain.getBlockHash(blockNum);
   let isNew = true;
   const finalized = mode !== SaveBlockMode.New;
   try {
-    const chainBlock = await prisma.chainBlock.findFirst({
-      where: { blockNum },
-    });
-    if (chainBlock) {
-      debug(`block ${blockNum} exists`);
-      if (
-        chainBlock.blockHash === blockHash.toHex() &&
-        mode !== SaveBlockMode.Force
-      ) {
-        if (finalized && !chainBlock.finalized) {
-          await prisma.$transaction([
-            prisma.chainBlock.update({
-              where: { blockNum },
-              data: { finalized: true },
-            }),
-            prisma.chainExtrinsic.updateMany({
-              where: { blockNum },
-              data: { finalized: true },
-            }),
-          ]);
-          log(`FinalizeBlock`, `${blockNum} ${blockHash}`);
+    if (mode !== SaveBlockMode.Sync) {
+      const chainBlock = await prisma.chainBlock.findFirst({
+        where: { blockNum },
+      });
+      if (chainBlock) {
+        if (
+          chainBlock.blockHash === blockHash.toHex() &&
+          mode !== SaveBlockMode.Force
+        ) {
+          if (finalized && !chainBlock.finalized) {
+            await prisma.$transaction([
+              prisma.chainBlock.update({
+                where: { blockNum },
+                data: { finalized: true },
+              }),
+              prisma.chainExtrinsic.updateMany({
+                where: { blockNum },
+                data: { finalized: true },
+              }),
+            ]);
+            log(`FinalizeBlock`, `${blockNum} ${blockHash}`);
+          }
+          return;
+        } else {
+          await prisma.chainBlock.delete({ where: { blockNum } });
+          isNew = false;
         }
-        return;
-      } else {
-        debug(`delete block ${blockNum}`);
-        await prisma.chainBlock.delete({ where: { blockNum } });
-        isNew = false;
       }
     }
     let blockAt = 0;
     const [signedBlock, extHeader, records, runtimeVersion] = await Promise.all(
       [
-        api.rpc.chain.getBlock(blockHash),
-        api.derive.chain.getHeader(blockHash),
-        api.query.system.events.at(blockHash),
-        api.rpc.state.getRuntimeVersion(blockHash),
+        apiRpc.rpc.chain.getBlock(blockHash),
+        apiRpc.derive.chain.getHeader(blockHash),
+        apiRpc.query.system.events.at(blockHash),
+        apiRpc.rpc.state.getRuntimeVersion(blockHash),
       ]
     );
     const paymentInfos = await Promise.all(
       signedBlock.block.extrinsics.map(async (ex) => {
         if (ex.isSigned) {
-          return api.rpc.payment.queryInfo(ex.toHex(), blockHash);
+          return apiRpc.rpc.payment.queryInfo(ex.toHex(), blockHash);
         }
       })
     );
+
     const blockSpecVersion = runtimeVersion.specVersion.toNumber();
     let chainVersion = chainSpecVersions.get(blockSpecVersion);
     if (!chainVersion) {
-      chainVersion = await addSpecVersion(blockHash, blockSpecVersion);
+      chainVersion = await loadSpecVersion(blockHash, blockSpecVersion);
     }
 
-    debug(`block ${blockNum}: parsing`);
     const events: ChainEvent[] = [];
     const transfers: ChainTransfer[] = [];
     let extrinsicError: any;
@@ -262,7 +227,6 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         isSigned,
         method: { method, section },
       } = ex;
-      debug(`block ${blockNum}: parse extrinsic ${section}.${method}`);
 
       if (section === "timestamp" && method === "set") {
         blockAt = Math.floor(parseInt(ex.args[0].toString()) / 1000);
@@ -283,8 +247,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       exEvents.forEach(({ record, recordIndex }) => {
         const { event } = record;
         const { section, method } = event;
-        debug(`block ${blockNum}: parse event ${section}.${method}`);
-        if (api.events.system.ExtrinsicFailed.is(event)) {
+        if (apiRpc.events.system.ExtrinsicFailed.is(event)) {
           success = false;
           const dispatchError = event.data[0] as unknown as DispatchError;
           extrinsicError = parseExtrinsicError(dispatchError, chainVersion);
@@ -388,7 +351,6 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       validator: extHeader?.author?.toString() || "",
       finalized,
     };
-    debug(`block ${blockNum}: ready to write db`);
     await prisma.$transaction([
       prisma.chainBlock.create({
         data: block,
@@ -413,11 +375,6 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       log(`CreateBlock`, `${blockNum} FAILED, ${err.message}`);
     }
   }
-}
-
-async function testBlock(blockNum: number) {
-  await createApi();
-  await saveBlock(blockNum, SaveBlockMode.Force);
 }
 
 function getExtrinsicKind(
@@ -586,21 +543,18 @@ function lookupErrorInfo(
   }
 }
 
-async function addSpecVersion(blockHash: BlockHash, specVersion: number) {
-  if (addingSpec && Date.now() - addingSpec < 30000) {
-    debug(`wating spec ${specVersion}`);
-    let retry = 30;
-    while (true) {
-      const version = chainSpecVersions.get(specVersion);
-      if (version) return version;
-      await sleep(1000 + (Math.random() - 0.5) * 100);
-      retry--;
-      if (retry === 0) return addSpecVersion(blockHash, specVersion);
-    }
+async function loadSpecVersion(blockHash: BlockHash, specVersion: number) {
+  const timeout = 30000;
+  const specEventName = `spec:${specVersion}`;
+  if (loadingSpecAt && Date.now() - loadingSpecAt < timeout) {
+    await pEvent(emitter, specEventName, { timeout });
+
+    const version = chainSpecVersions.get(specVersion);
+    if (version) return version;
+    return loadSpecVersion(blockHash, specVersion);
   }
-  debug(`adding spec ${specVersion} at ${blockHash.toHex()}`);
-  addingSpec = Date.now();
-  const chainMetadata = await api.rpc.state.getMetadata(blockHash);
+  loadingSpecAt = Date.now();
+  const chainMetadata = await apiRpc.rpc.state.getMetadata(blockHash);
   const lastChainVersion = await prisma.chainVersion.findFirst({
     orderBy: { specVersion: "desc" },
   });
@@ -624,10 +578,12 @@ async function addSpecVersion(blockHash: BlockHash, specVersion: number) {
     rawData: metadata,
   } as ChainVersion;
   chainSpecVersions.set(specVersion, version);
-  log(`SaveSpec`, specVersion.toString());
   await prisma.chainVersion.create({
     data: version,
   });
+  log(`SaveSpec`, specVersion.toString());
+  emitter.emit(specEventName);
+  loadingSpecAt = 0;
   return version;
 }
 

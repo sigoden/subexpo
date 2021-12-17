@@ -13,8 +13,8 @@
   "dependencies": {
     "@polkadot/api": "^6.9.2",
     "@prisma/client": "^3.6.0",
-    "debug": "^4.3.3",
     "heap-js": "^2.1.6",
+    "p-event": "^4",
     "p-queue": "^6",
     "prisma": "^3.6.0"
   },
