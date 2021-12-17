@@ -5,13 +5,16 @@ import {
   ChainTransfer,
 } from "@prisma/client";
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { extractAuthor } from "@polkadot/api-derive/type/util";
 import { HttpProvider } from "@polkadot/rpc-provider";
 import {
   Call,
   BlockHash,
   FunctionArgumentMetadataLatest,
+  SignedBlock,
   DispatchError,
   Event,
+  AccountId,
 } from "@polkadot/types/interfaces";
 import { xxhashAsHex, cryptoWaitReady } from "@polkadot/util-crypto";
 import { EventEmitter } from "events";
@@ -29,6 +32,7 @@ const emitter = new EventEmitter();
 const prisma = new PrismaClient();
 const finalizedQueue = new Heap<number>();
 const newQueue = new Heap<number>();
+const sessionValidators = new Map<number, AccountId[]>();
 
 let apiWs: ApiPromise;
 let apiRpc: ApiPromise;
@@ -38,11 +42,11 @@ let loadingSpecAt = 0;
 
 async function main() {
   await createApi();
+  await loadChainVersions();
   if (process.env.DEBUG_BLOCK) {
     await saveBlock(parseInt(process.env.DEBUG_BLOCK), SaveBlockMode.Force);
     process.exit(0);
   }
-  await loadChainVersions();
   await syncBlocks();
   runFinalizedQueue();
   runNewQueue();
@@ -194,14 +198,13 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       }
     }
     let blockAt = 0;
-    const [signedBlock, extHeader, records, runtimeVersion] = await Promise.all(
-      [
+    const [signedBlock, sessionIndex, records, runtimeVersion] =
+      await Promise.all([
         apiRpc.rpc.chain.getBlock(blockHash),
-        apiRpc.derive.chain.getHeader(blockHash),
+        apiRpc.query.session.currentIndex.at(blockHash),
         apiRpc.query.system.events.at(blockHash),
         apiRpc.rpc.state.getRuntimeVersion(blockHash),
-      ]
-    );
+      ]);
     const paymentInfos = await Promise.all(
       signedBlock.block.extrinsics.map(async (ex) => {
         if (ex.isSigned) {
@@ -336,6 +339,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         data: logValue as any,
       };
     });
+
     const block = {
       blockNum,
       blockAt,
@@ -346,7 +350,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       extrinsicsCount,
       eventsCount: events.length,
       specVersion: blockSpecVersion,
-      validator: extHeader?.author?.toString() || "",
+      validator: await getAuthor(signedBlock, sessionIndex.toNumber()),
       finalized,
     };
     await prisma.$transaction([
@@ -388,6 +392,28 @@ function getExtrinsicKind(
     default:
       return 0;
   }
+}
+
+async function getAuthor(signedBlock: SignedBlock, sessionIndex: number) {
+  let validators = sessionValidators.get(sessionIndex);
+  if (!validators) {
+    validators = await apiRpc.query.session.validators.at(
+      signedBlock.block.hash
+    );
+    if (!sessionValidators.has(sessionIndex)) {
+      sessionValidators.set(sessionIndex, validators);
+      Array.from(sessionValidators.keys()).forEach((idx) => {
+        if (sessionIndex - idx < 3) {
+          sessionValidators.delete(idx);
+        }
+      });
+    }
+  }
+  const validator = extractAuthor(
+    signedBlock.block.header.digest,
+    validators
+  ).toString();
+  return validator;
 }
 
 interface ParsedArg {
