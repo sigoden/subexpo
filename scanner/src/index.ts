@@ -86,8 +86,8 @@ async function syncBlocks() {
   if (blockNums.length > 0) {
     await batchSaveBlocks(blockNums);
   }
-  syncBlockNum = end - 1;
-  if (latestBlockNum - syncBlockNum > 1) {
+  syncBlockNum = end;
+  if (latestBlockNum > syncBlockNum) {
     return syncBlocks();
   }
 }
@@ -96,7 +96,7 @@ async function getMissBlocks(start: number, end: number) {
   const result = [];
   const blocks = await prisma.chainBlock.findMany({
     where: {
-      blockNum: { gte: start, lt: end },
+      blockNum: { gte: start, lte: end },
     },
     select: { blockNum: true },
     orderBy: { blockNum: "asc" },
