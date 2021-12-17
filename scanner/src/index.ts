@@ -20,7 +20,6 @@ import pEvent from "p-event";
 import Heap from "heap-js";
 
 const ENDPOINT = process.env.ENDPOINT || "ws://localhost:9944";
-const ENDPOINT_RPC = process.env.ENDPOINT_RPC || "http://localhost:9933";
 const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 10;
 const TYPE_FILE = process.env.TYPE_FILE || "../type";
 const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 6000;
@@ -44,9 +43,6 @@ async function main() {
     process.exit(0);
   }
   await loadChainVersions();
-  setInterval(() => {
-    console.log("Tick");
-  }, 10000);
   await syncBlocks();
   runFinalizedQueue();
   runNewQueue();
@@ -55,7 +51,9 @@ async function main() {
 
 async function createApi() {
   const providerWs = new WsProvider(ENDPOINT);
-  const providerRpc = new HttpProvider(ENDPOINT_RPC);
+  const providerRpc = process.env.ENDPOINT_RPC
+    ? new HttpProvider(process.env.ENDPOINT_RPC)
+    : providerWs;
   let options = {};
   try {
     options = { ...require(TYPE_FILE) };
@@ -362,7 +360,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         data: logs,
       }),
       prisma.chainEvent.createMany({
-        data: events as any,
+        data: events,
       }),
       prisma.chainTransfer.createMany({
         data: transfers,
@@ -370,10 +368,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
     ]);
     log(isNew ? " CreateBlock " : " UpdateBlock ", `${blockNum} ${blockHash}`);
   } catch (err: any) {
-    if (/UniqueConstraintViolation/.test(err.message)) {
-    } else {
-      log(`CreateBlock`, `${blockNum} FAILED, ${err.message}`);
-    }
+    log(`CreateBlock`, `${blockNum} FAILED, ${err.message}`);
   }
 }
 
