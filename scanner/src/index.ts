@@ -90,26 +90,43 @@ async function syncBlocks() {
   if (blockNums.length > 0) {
     await batchSaveBlocks(blockNums);
   }
-  syncBlockNum = end;
-  if (latestBlockNum > syncBlockNum) {
+  if (end < latestBlockNum) {
+    syncBlockNum = end;
     return syncBlocks();
   }
+  const { isSyncing } = await apiRpc.rpc.system.health();
+  if (isSyncing.isTrue) {
+    syncBlockNum = end;
+    await syncBlocks();
+  }
+  syncBlockNum = latestBlockNum - 1;
 }
 
 async function getMissBlocks(start: number, end: number) {
-  const result = [];
   const blocks = await prisma.chainBlock.findMany({
     where: {
       blockNum: { gte: start, lte: end },
     },
-    select: { blockNum: true },
+    select: { blockNum: true, finalized: true },
     orderBy: { blockNum: "asc" },
   });
-  const blockNums = new Set(blocks.map((block) => block.blockNum));
-  for (let i = start; i < end; i++) {
-    if (!blockNums.has(i)) result.push(i);
+  const blockNums = new Set(
+    Array.from({ length: end - start }, (_, i) => start + i)
+  );
+  const unfinalized = [];
+  for (const item of blocks) {
+    if (item.finalized) {
+      blockNums.delete(item.blockNum);
+    } else {
+      unfinalized.push(item.blockNum);
+    }
   }
-  return result;
+  if (unfinalized.length > 0) {
+    await prisma.chainBlock.deleteMany({
+      where: { blockNum: { in: unfinalized } },
+    });
+  }
+  return Array.from(blockNums);
 }
 
 async function batchSaveBlocks(blockNums: number[]) {
@@ -370,9 +387,9 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         data: transfers,
       }),
     ]);
-    log(isNew ? " CreateBlock " : " UpdateBlock ", `${blockNum} ${blockHash}`);
+    log(isNew ? "CreateBlock" : "UpdateBlock", `${blockNum} ${blockHash}`);
   } catch (err: any) {
-    log(`CreateBlock`, `${blockNum} FAILED, ${err.message}`);
+    log(`CreateBlock`, `${blockNum} FAILED, ${err.stack}`);
   }
 }
 
@@ -409,11 +426,8 @@ async function getAuthor(signedBlock: SignedBlock, sessionIndex: number) {
       });
     }
   }
-  const validator = extractAuthor(
-    signedBlock.block.header.digest,
-    validators
-  ).toString();
-  return validator;
+  const validator = extractAuthor(signedBlock.block.header.digest, validators);
+  return validator ? validator.toString() : "";
 }
 
 interface ParsedArg {
