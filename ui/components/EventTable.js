@@ -8,11 +8,16 @@ const columns = [
   {
     title: "ID",
     dataIndex: "eventId",
-    render: (eventId, record) => (
-      <Link href={`/extrinsics/${record.extrinsicId}`}>
-        <a>{eventId}</a>
-      </Link>
-    ),
+    render: (eventId, record) =>
+      record.extrinsicId ? (
+        <Link href={`/extrinsics/${record.extrinsicId}?tab=events`}>
+          <a>{eventId}</a>
+        </Link>
+      ) : (
+        <Link href={`/blocks/${record.blockNum}?tab=events`}>
+          <a>{eventId}</a>
+        </Link>
+      ),
   },
   {
     title: "Block",
