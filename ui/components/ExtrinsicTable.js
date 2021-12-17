@@ -61,7 +61,9 @@ export default function ExtrinsicTable(props) {
       )}
       rowKey="extrinsicId"
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
-      expandIcon={ExpandIcon}
+      expandIcon={(props) =>
+        props.record.args?.length > 0 ? <ExpandIcon {...props} /> : null
+      }
       expandable={{
         expandedRowRender: (record) => (
           <div className="args">

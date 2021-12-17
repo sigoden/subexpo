@@ -68,7 +68,9 @@ export default function EventTable(props) {
       columns={filterdColumns}
       rowKey="eventId"
       expandIconColumnIndex={Number.MAX_SAFE_INTEGER}
-      expandIcon={ExpandIcon}
+      expandIcon={(props) =>
+        props.record.data?.length > 0 ? <ExpandIcon {...props} /> : null
+      }
       expandable={{
         expandedRowRender: (record) => (
           <div className="args">
