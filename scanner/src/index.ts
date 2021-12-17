@@ -87,7 +87,7 @@ async function syncBlocks() {
     await batchSaveBlocks(blockNums);
   }
   syncBlockNum = end - 1;
-  if (syncBlockNum < latestBlockNum) {
+  if (latestBlockNum - syncBlockNum > 1) {
     return syncBlocks();
   }
 }
