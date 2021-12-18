@@ -709,7 +709,8 @@ function formatIdx(idx: number, count: number) {
 function detectSpecialType(typeName: string): string {
   const types = ["Balance", "AccountId", "BlockNumber"];
   if (!types.find((v) => typeName.includes(v))) return;
-  if (/^Option<.+>/.test(typeName)) typeName = typeName.slice(7, -1);
+  if (/^Option<.+>$/.test(typeName)) typeName = typeName.slice(7, -1);
+  if (/^Compact<.+>$/.test(typeName)) typeName = typeName.slice(8, -1);
   if (/<T>$/.test(typeName)) typeName = typeName.slice(0, -3);
   if (/<T as .+>::$/.test(typeName))
     typeName = typeName.replace(/<T as .+>::$/, "");
