@@ -36,7 +36,7 @@ export default async function handler(req, res) {
         blockAt: true,
         section: true,
         method: true,
-        data: true,
+        args: true,
       },
       orderBy: { blockNum: "desc" },
       skip: (currentValue - 1) * pageSizeValue,

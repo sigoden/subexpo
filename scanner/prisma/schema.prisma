@@ -31,7 +31,7 @@ model ChainEvent {
   extrinsicId    String?
   section        String
   method         String
-  data           Json
+  args           Json
   accountId      String?
   ChainBlock     ChainBlock?     @relation(fields: [blockNum], references: [blockNum], onDelete: Cascade, onUpdate: Cascade)
   ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId], onDelete: Cascade, onUpdate: Cascade)
@@ -71,7 +71,7 @@ model ChainLog {
   logId      String      @id
   blockNum   Int
   logType    String
-  data       Json
+  args       Json
   ChainBlock ChainBlock? @relation(fields: [blockNum], references: [blockNum], onDelete: Cascade, onUpdate: Cascade)
 }
 

@@ -12,7 +12,7 @@ export default function Args({ args }) {
             <div>{arg.name || arg.type}</div>
           </div>
           <div className={styles.itemValue}>
-            <ArgValue type={arg.type} value={arg.value} />
+            <ArgValue type={arg.specialType || arg.type} value={arg.value} />
           </div>
         </div>
       ))}
@@ -64,7 +64,11 @@ function ArgValue({ type, value }) {
     );
   } else if (type === "Balance") {
     return <Balance balance={value} />;
-  } else if (type === "AccountId" || type === "MultiAddress") {
+  } else if (
+    type === "AccountId" ||
+    ((type === "MultiAddress" || type === "LookupSource") &&
+      value.length === 48)
+  ) {
     return (
       <Link href={`/accounts/${value}`}>
         <a>{value}</a>
@@ -76,7 +80,7 @@ function ArgValue({ type, value }) {
         <a>{value}</a>
       </Link>
     );
-  } else if (type === "Bytes:X") {
+  } else if (type === "LargeBytes") {
     return (
       <Link href={`/api/bytes/${value}`}>
         <a>{value}</a>

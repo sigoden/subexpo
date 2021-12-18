@@ -8,7 +8,6 @@ import { ApiPromise, WsProvider } from "@polkadot/api";
 import { extractAuthor } from "@polkadot/api-derive/type/util";
 import { HttpProvider } from "@polkadot/rpc-provider";
 import {
-  Call,
   BlockHash,
   FunctionArgumentMetadataLatest,
   SignedBlock,
@@ -17,6 +16,7 @@ import {
   AccountId,
 } from "@polkadot/types/interfaces";
 import { xxhashAsHex, cryptoWaitReady } from "@polkadot/util-crypto";
+import { AnyTuple, CallBase } from "@polkadot/types/types";
 import { EventEmitter } from "events";
 import PQueue from "p-queue";
 import pEvent from "p-event";
@@ -229,7 +229,6 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
         }
       })
     );
-
     const blockSpecVersion = runtimeVersion.specVersion.toNumber();
     let chainVersion = chainSpecVersions.get(blockSpecVersion);
     if (!chainVersion) {
@@ -241,20 +240,15 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
     let extrinsicError: any;
     const extrinsicsCount = signedBlock.block.extrinsics.length;
     const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
-      const {
-        isSigned,
-        method: { method, section },
-      } = ex;
+      const calls = new Set<string>();
+      const { isSigned } = ex;
+      const { method, section, args: exArgs } = parseCall(calls, ex.method);
 
       if (section === "timestamp" && method === "set") {
-        blockAt = Math.floor(parseInt(ex.args[0].toString()) / 1000);
+        blockAt = Math.floor(parseInt(exArgs[0].value) / 1000);
       }
 
       const paymentInfo = paymentInfos[exIndex];
-      const calls = new Set<string>();
-      const exArgs = ex.method.args.map((arg, argIndex) =>
-        parseArg(calls, arg, ex.meta.args[argIndex])
-      );
       const exEvents = records
         .map((record, recordIndex) => ({ record, recordIndex }))
         .filter(
@@ -283,7 +277,7 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
           section,
           method,
           accountId: isSigned ? ex.signer.toString() : null,
-          data: parseEventData(event, chainVersion) as any,
+          args: parseEventArgs(event, chainVersion) as any,
         });
       });
       const extrinsicId = `${blockNum}-${formatIdx(exIndex, extrinsicsCount)}`;
@@ -342,18 +336,17 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
           section,
           method,
           accountId: null,
-          data: parseEventData(event, chainVersion) as any,
+          args: parseEventArgs(event, chainVersion) as any,
         });
       });
 
     const logs = signedBlock.block.header.digest.logs.map((log, index) => {
-      let logValue = log.value.toHuman();
-      if (logValue == null) logValue = [];
+      const args = log.value.toHuman() || [];
       return {
         logId: `${blockNum}-${index}`,
         blockNum,
         logType: log.type,
-        data: logValue as any,
+        args: args as any,
       };
     });
 
@@ -430,29 +423,51 @@ async function getAuthor(signedBlock: SignedBlock, sessionIndex: number) {
   return validator ? validator.toString() : "";
 }
 
+interface ParsedCallArg {
+  section: string;
+  method: string;
+  args: ParsedArg[];
+}
+
+function parseCall(
+  calls: Set<string>,
+  call: CallBase<AnyTuple>
+): ParsedCallArg {
+  const { section, method, meta } = call;
+  calls.add(`${section}.${method}`);
+  return {
+    section,
+    method,
+    args: call.args.map((callArg, callArgIndex) =>
+      parseCallArgs(calls, callArg, meta.args[callArgIndex])
+    ),
+  };
+}
+
 interface ParsedArg {
   name: string;
   type: string;
   value: any;
+  specialType: string;
 }
 
-function parseArg(
+function parseCallArgs(
   calls: Set<string>,
   arg: any,
-  argMeta: FunctionArgumentMetadataLatest
+  meta: FunctionArgumentMetadataLatest
 ): ParsedArg {
-  const name = argMeta.name.toString();
-  let type =
-    detectSpecialType(argMeta.typeName.toString()) || argMeta.type.toString();
-
-  let value;
+  const name = meta.name.toString();
+  const type = meta.type.toString();
+  const typeName = meta.typeName.toString();
+  let value = arg.toString();
+  let specialType = detectSpecialType(typeName || type, value);
   if (type === "Call") {
-    value = parseCallArg(calls, arg as Call);
+    value = parseCall(calls, arg as CallBase<AnyTuple>);
   } else if (type === "Vec<Call>") {
-    value = (arg as Call[]).map((call) => parseCallArg(calls, call));
+    value = (arg as CallBase<AnyTuple>[]).map((call) => parseCall(calls, call));
   } else if (type === "Bytes") {
     if (arg.length > LARGE_BYTES_SIZE) {
-      type = "Bytes:X";
+      specialType = "LargeBytes";
       value = xxhashAsHex(arg, 128).toString().slice(2);
       (async () => {
         log(`SaveLargeBytes`, value);
@@ -462,39 +477,25 @@ function parseArg(
       })();
     }
   }
-  return { name, type, value: value || arg.toString() };
+  return { name, type, value, specialType };
 }
 
-interface ParsedCallArg {
-  section: string;
-  method: string;
-  args: ParsedArg[];
-}
-
-function parseCallArg(calls: Set<string>, call: Call): ParsedCallArg {
-  calls.add(`${call.section}.${call.method}`);
-  return {
-    section: call.section,
-    method: call.method,
-    args: call.args.map((callArg, callArgIndex) =>
-      parseArg(calls, callArg, call.meta.args[callArgIndex])
-    ),
-  };
-}
-
-interface ParsedEventData {
+interface ParsedEventArg {
   type: string;
   value: string;
+  specialType: string;
 }
 
-function parseEventData(
+function parseEventArgs(
   event: Event,
   chainVersion: ChainVersion
-): ParsedEventData[] {
+): ParsedEventArg[] {
   const { data, meta } = event;
   return data.map((arg, index) => {
     let type = meta.args[index].toString();
+    const value = arg.toString();
     const typeName = meta.fields[index].typeName.toString();
+    const specialType = detectSpecialType(typeName || type, value);
     if (type.startsWith('{"_enum":{"Other":"Null"')) {
       type = "DispatchError";
     }
@@ -509,12 +510,14 @@ function parseEventData(
         value: return {
           type,
           value: JSON.stringify(errorInfo),
+          specialType,
         };
       }
     }
     return {
-      type: detectSpecialType(typeName) || type,
-      value: arg.toString(),
+      type,
+      value,
+      specialType,
     };
   });
 }
@@ -706,19 +709,23 @@ function formatIdx(idx: number, count: number) {
   return ("0".repeat(numDigits) + idx.toString()).slice(-1 * numDigits);
 }
 
-function detectSpecialType(typeName: string): string {
-  const types = ["Balance", "AccountId", "BlockNumber"];
-  if (!types.find((v) => typeName.includes(v))) return;
-  if (/^Option<.+>$/.test(typeName)) typeName = typeName.slice(7, -1);
-  if (/^Compact<.+>$/.test(typeName)) typeName = typeName.slice(8, -1);
-  if (/<T>$/.test(typeName)) typeName = typeName.slice(0, -3);
-  if (/<T as .+>::$/.test(typeName))
-    typeName = typeName.replace(/<T as .+>::$/, "");
-  if (/<T, I>$/.test(typeName)) typeName = typeName.slice(0, -6);
-  if (/^T::/.test(typeName)) typeName = typeName.slice(3);
-  if (/Of$/.test(typeName)) typeName = typeName.slice(0, -2);
-  if (/For$/.test(typeName)) typeName = typeName.slice(0, -3);
-  if (types.includes(typeName)) return typeName;
+function detectSpecialType(type: string, value: string): string {
+  if (type.includes("Balance")) {
+    try {
+      if (apiRpc.createType("Balance", value).toString() === value)
+        return "Balance";
+    } catch {}
+  } else if (type.includes("BlockNumber")) {
+    try {
+      if (apiRpc.createType("BlockNumber", value).toString() === value)
+        return "BlockNumber";
+    } catch {}
+  } else if (type.includes("AccountId") || type.includes("Address")) {
+    try {
+      if (apiRpc.createType("AccountId", value).toString() === value)
+        return "AccountId";
+    } catch {}
+  }
 }
 
 function log(topic: string, message: string) {
