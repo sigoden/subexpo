@@ -22,6 +22,7 @@ model ChainBlock {
   specVersion     Int
   validator       String
   finalized       Boolean          @default(false)
+  ChainBlob       ChainBlob[]
 }
 
 model ChainEvent {
@@ -35,6 +36,7 @@ model ChainEvent {
   accountId      String?
   ChainBlock     ChainBlock?     @relation(fields: [blockNum], references: [blockNum], onDelete: Cascade, onUpdate: Cascade)
   ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId], onDelete: Cascade, onUpdate: Cascade)
+
   @@index([accountId])
   @@index([section, method])
 }
@@ -63,6 +65,7 @@ model ChainExtrinsic {
   finalized       Boolean        @default(false)
   ChainBlock      ChainBlock?    @relation(fields: [blockNum], references: [blockNum], onDelete: Cascade, onUpdate: Cascade)
   transfer        ChainTransfer?
+
   @@index([accountId])
   @@index([section, method])
 }
@@ -94,12 +97,15 @@ model ChainTransfer {
   success        Boolean
   nonce          Int
   ChainExtrinsic ChainExtrinsic? @relation(fields: [extrinsicId], references: [extrinsicId], onDelete: Cascade, onUpdate: Cascade)
+
   @@index([from])
   @@index([to])
   @@index([blockNum])
 }
 
-model ChainBytes {
-  hash String @id
-  data Bytes
+model ChainBlob {
+  hash       String      @id
+  data       Bytes
+  blockNum   Int
+  ChainBlock ChainBlock? @relation(fields: [blockNum], references: [blockNum], onDelete: Cascade, onUpdate: Cascade)
 }

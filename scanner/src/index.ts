@@ -3,6 +3,7 @@ import {
   ChainEvent,
   ChainVersion,
   ChainTransfer,
+  ChainBlob,
 } from "@prisma/client";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { extractAuthor } from "@polkadot/api-derive/type/util";
@@ -237,12 +238,19 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
 
     const events: ChainEvent[] = [];
     const transfers: ChainTransfer[] = [];
+    const chainBlobs: ChainBlob[] = [];
     let extrinsicError: any;
     const extrinsicsCount = signedBlock.block.extrinsics.length;
     const extrinsics = signedBlock.block.extrinsics.map((ex, exIndex) => {
       const calls = new Set<string>();
+      const blobs: BlobData[] = [];
       const { isSigned } = ex;
-      const { method, section, args: exArgs } = parseCall(calls, ex.method);
+      const {
+        method,
+        section,
+        args: exArgs,
+      } = parseCall({ calls, blobs }, ex.method);
+      blobs.map(({ hash, data }) => chainBlobs.push({ hash, data, blockNum }));
 
       if (section === "timestamp" && method === "set") {
         blockAt = Math.floor(parseInt(exArgs[0].value) / 1000);
@@ -379,6 +387,9 @@ async function saveBlock(blockNum: number, mode: SaveBlockMode) {
       prisma.chainTransfer.createMany({
         data: transfers,
       }),
+      prisma.chainBlob.createMany({
+        data: chainBlobs,
+      }),
     ]);
     log(isNew ? "CreateBlock" : "UpdateBlock", `${blockNum} ${blockHash}`);
   } catch (err: any) {
@@ -423,23 +434,30 @@ async function getAuthor(signedBlock: SignedBlock, sessionIndex: number) {
   return validator ? validator.toString() : "";
 }
 
+interface ParseArgsCtx {
+  calls: Set<string>;
+  blobs: BlobData[];
+}
+
+interface BlobData {
+  hash: string;
+  data: Buffer;
+}
+
 interface ParsedCallArg {
   section: string;
   method: string;
   args: ParsedArg[];
 }
 
-function parseCall(
-  calls: Set<string>,
-  call: CallBase<AnyTuple>
-): ParsedCallArg {
+function parseCall(ctx: ParseArgsCtx, call: CallBase<AnyTuple>): ParsedCallArg {
   const { section, method, meta } = call;
-  calls.add(`${section}.${method}`);
+  ctx.calls.add(`${section}.${method}`);
   return {
     section,
     method,
     args: call.args.map((callArg, callArgIndex) =>
-      parseCallArgs(calls, callArg, meta.args[callArgIndex])
+      parseCallArgs(ctx, callArg, meta.args[callArgIndex])
     ),
   };
 }
@@ -452,7 +470,7 @@ interface ParsedArg {
 }
 
 function parseCallArgs(
-  calls: Set<string>,
+  ctx: ParseArgsCtx,
   arg: any,
   meta: FunctionArgumentMetadataLatest
 ): ParsedArg {
@@ -462,19 +480,14 @@ function parseCallArgs(
   let value = arg.toString();
   let specialType = detectSpecialType(typeName || type, value);
   if (type === "Call") {
-    value = parseCall(calls, arg as CallBase<AnyTuple>);
+    value = parseCall(ctx, arg as CallBase<AnyTuple>);
   } else if (type === "Vec<Call>") {
-    value = (arg as CallBase<AnyTuple>[]).map((call) => parseCall(calls, call));
+    value = (arg as CallBase<AnyTuple>[]).map((call) => parseCall(ctx, call));
   } else if (type === "Bytes") {
     if (arg.length > LARGE_BYTES_SIZE) {
-      specialType = "LargeBytes";
+      specialType = "Blob";
       value = md5(arg);
-      (async () => {
-        log(`SaveLargeBytes`, value);
-        await prisma.chainBytes.create({
-          data: { hash: value, data: Buffer.from(arg.toU8a()) },
-        });
-      })();
+      ctx.blobs.push({ hash: value, data: Buffer.from(arg.toU8a()) });
     }
   }
   return { name, type, value, specialType };

@@ -14,6 +14,7 @@ async function detectKind(value) {
   if (/^\d+$/.test(value)) {
     const block = await prisma.chainBlock.findFirst({
       where: { blockNum: parseInt(value) },
+      select: { blockNum },
     });
     if (!block) return "";
     return "block";
@@ -26,8 +27,14 @@ async function detectKind(value) {
     return "account";
   }
   const [block, extrinsic] = await Promise.all([
-    prisma.chainBlock.findFirst({ where: { blockHash: value } }),
-    prisma.chainExtrinsic.findFirst({ where: { extrinsicHash: value } }),
+    prisma.chainBlock.findFirst({
+      where: { blockHash: value },
+      select: { blockHash },
+    }),
+    prisma.chainExtrinsic.findFirst({
+      where: { extrinsicHash: value },
+      select: { extrinsicHash },
+    }),
   ]);
   if (block) {
     return "block";

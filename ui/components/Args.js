@@ -82,7 +82,7 @@ function ArgValue({ type, value }) {
         <a>{value}</a>
       </Link>
     );
-  } else if (type === "LargeBytes") {
+  } else if (type === "Blob") {
     return (
       <Link href={`/api/bytes/${value}`}>
         <a>{value}</a>
