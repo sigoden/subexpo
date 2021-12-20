@@ -26,21 +26,21 @@ async function detectKind(value) {
     if (accountInfo.isEmpty) return "";
     return "account";
   }
-  const [block, extrinsic] = await Promise.all([
-    prisma.chainBlock.findFirst({
-      where: { blockHash: value },
-      select: { blockHash: true },
-    }),
-    prisma.chainExtrinsic.findFirst({
+  if (value.startsWith("0x") && value.length === 66) {
+    const extrinsic = await prisma.chainExtrinsic.findFirst({
       where: { extrinsicHash: value },
       select: { extrinsicHash: true },
-    }),
-  ]);
-  if (block) {
-    return "block";
-  }
-  if (extrinsic) {
-    return "extrinsic";
+    });
+    if (extrinsic) {
+      return "extrinsic";
+    }
+    const block = await prisma.chainBlock.findFirst({
+      where: { blockHash: value },
+      select: { blockHash: true },
+    });
+    if (block) {
+      return "block";
+    }
   }
   return "";
 }

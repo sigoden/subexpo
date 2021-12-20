@@ -17,20 +17,25 @@ const { TabPane } = Tabs;
 export async function getServerSideProps({ params }) {
   const prisma = getPrisma();
   const { id } = params;
-  const blockNum = parseInt(id);
-  const where = blockNum > -1 ? { blockNum } : { blockHash: id };
-  const block = await prisma.chainBlock.findFirst({ where });
-  if (block) {
-    const [extrinsics, events, logs] = await Promise.all([
-      prisma.chainExtrinsic.findMany({ where: { blockNum: block.blockNum } }),
-      block.eventsCount
-        ? prisma.chainEvent.findMany({ where: { blockNum: block.blockNum } })
-        : Promise.resolve([]),
-      prisma.chainLog.findMany({ where: { blockNum: block.blockNum } }),
-    ]);
-    return { props: { block, extrinsics, events, logs } };
+  let block;
+  if (/^\d+$/.test(id)) {
+    block = await prisma.chainBlock.findFirst({
+      where: { blockNum: parseInt(id) },
+    });
+  } else if (id.startsWith("0x") && id.length === 66) {
+    block = await prisma.chainBlock.findFirst({ where: { blockHash: id } });
   }
-  return { notFound: true };
+  if (!block) {
+    return { notFound: true };
+  }
+  const [extrinsics, events, logs] = await Promise.all([
+    prisma.chainExtrinsic.findMany({ where: { blockNum: block.blockNum } }),
+    block.eventsCount
+      ? prisma.chainEvent.findMany({ where: { blockNum: block.blockNum } })
+      : Promise.resolve([]),
+    prisma.chainLog.findMany({ where: { blockNum: block.blockNum } }),
+  ]);
+  return { props: { block, extrinsics, events, logs } };
 }
 
 export default function BlockPage({ block, events, extrinsics, logs }) {

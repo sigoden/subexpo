@@ -12,19 +12,23 @@ const { TabPane } = Tabs;
 export async function getServerSideProps({ params }) {
   const prisma = getPrisma();
   const { id } = params;
-  if (typeof id === "string") {
-    const where = /^\d+-\d+$/.test(id)
-      ? { extrinsicId: id }
-      : { extrinsicHash: id };
-    const extrinsic = await prisma.chainExtrinsic.findFirst({ where });
-    if (extrinsic) {
-      const events = await prisma.chainEvent.findMany({
-        where: { extrinsicId: extrinsic.extrinsicId },
-      });
-      return { props: { extrinsic, events } };
-    }
+  let extrinsic;
+  if (/^\d+-\d+$/.test(id)) {
+    extrinsic = await prisma.chainExtrinsic.findFirst({
+      where: { extrinsicId: id },
+    });
+  } else if (id.startsWith("0x") && id.length === 66) {
+    extrinsic = await prisma.chainExtrinsic.findFirst({
+      where: { extrinsicHash: id },
+    });
   }
-  return { notFound: true };
+  if (!extrinsic) {
+    return { notFound: true };
+  }
+  const events = await prisma.chainEvent.findMany({
+    where: { extrinsicId: extrinsic.extrinsicId },
+  });
+  return { props: { extrinsic, events } };
 }
 
 export default function ExtrinsicPage({ events, extrinsic }) {
