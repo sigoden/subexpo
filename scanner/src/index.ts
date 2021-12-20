@@ -15,7 +15,7 @@ import {
   Event,
   AccountId,
 } from "@polkadot/types/interfaces";
-import { xxhashAsHex, cryptoWaitReady } from "@polkadot/util-crypto";
+import { createHash } from "crypto";
 import { AnyTuple, CallBase } from "@polkadot/types/types";
 import { EventEmitter } from "events";
 import PQueue from "p-queue";
@@ -69,7 +69,7 @@ async function createApi() {
     ApiPromise.create({ provider: providerWs, ...options }),
     ApiPromise.create({ provider: providerRpc, ...options }),
   ]);
-  await Promise.all([cryptoWaitReady(), apiWs.isReady, apiRpc.isReady]);
+  await Promise.all([apiWs.isReady, apiRpc.isReady]);
 }
 
 async function loadChainVersions() {
@@ -468,7 +468,7 @@ function parseCallArgs(
   } else if (type === "Bytes") {
     if (arg.length > LARGE_BYTES_SIZE) {
       specialType = "LargeBytes";
-      value = xxhashAsHex(arg, 128).toString().slice(2);
+      value = md5(arg);
       (async () => {
         log(`SaveLargeBytes`, value);
         await prisma.chainBytes.create({
@@ -730,6 +730,10 @@ function detectSpecialType(type: string, value: string): string {
 
 function log(topic: string, message: string) {
   console.log(topic, message);
+}
+
+function md5(data: Buffer): string {
+  return createHash("md5").update(data).digest().toString("hex");
 }
 
 main().catch((err) => console.error(err));
