@@ -753,7 +753,11 @@ function md5(data: Buffer): string {
 
 if (process.env.DATABASE_SYNC) {
   const cmd = path.resolve("node_modules/.bin/prisma");
-  execSync(`${cmd} db push`);
-  log("SyncDatabase", "success");
+  try {
+    execSync(`${cmd} db push`);
+    log("SyncDatabase", "success");
+  } catch (err) {
+    process.exit(1);
+  }
 }
 main().catch((err) => console.error(err));
