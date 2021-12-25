@@ -4,5 +4,4 @@ node_modules
 .next
 dist
 *.log
-/scanner/type.js
-/ui/type.js
+/scanner/types.json
