@@ -5,6 +5,8 @@ import {
   ChainTransfer,
   ChainBlob,
 } from "@prisma/client";
+import path from "path";
+import { execSync } from "child_process";
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { extractAuthor } from "@polkadot/api-derive/type/util";
 import { HttpProvider } from "@polkadot/rpc-provider";
@@ -25,9 +27,9 @@ import Heap from "heap-js";
 
 const ENDPOINT = process.env.ENDPOINT || "ws://localhost:9944";
 const CONCURRENCY = parseInt(process.env.CONCURRENCY) || 10;
-const TYPE_FILE = process.env.TYPE_FILE || "../type";
-const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 6000;
-const LARGE_BYTES_SIZE = parseInt(process.env.LARGE_BYTES_SIZE) || 65536; // 64k
+const TYPES_FILE = process.env.TYPES_FILE || "../types";
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE) || 5000;
+const MIN_BLOB_SIZE = parseInt(process.env.MIN_BLOB_SIZE) || 65536; // 64k
 
 const emitter = new EventEmitter();
 const prisma = new PrismaClient();
@@ -61,10 +63,10 @@ async function createApi() {
     : providerWs;
   let options = {};
   try {
-    options = { ...require(TYPE_FILE) };
-    log(`UseTypes`, "yes");
+    options = { ...require(TYPES_FILE) };
+    log(`LoadTypes`, "yes");
   } catch {
-    log(`UseTypes`, "no");
+    log(`LoadTypes`, "no");
   }
   [apiWs, apiRpc] = await Promise.all([
     ApiPromise.create({ provider: providerWs, ...options }),
@@ -484,7 +486,7 @@ function parseCallArgs(
   } else if (type === "Vec<Call>") {
     value = (arg as CallBase<AnyTuple>[]).map((call) => parseCall(ctx, call));
   } else if (type === "Bytes") {
-    if (arg.length > LARGE_BYTES_SIZE) {
+    if (arg.length > MIN_BLOB_SIZE) {
       specialType = "Blob";
       value = md5(arg);
       ctx.blobs.push({ hash: value, data: Buffer.from(arg.toU8a()) });
@@ -749,4 +751,9 @@ function md5(data: Buffer): string {
   return createHash("md5").update(data).digest().toString("hex");
 }
 
+if (process.env.DATABASE_SYNC) {
+  const cmd = path.resolve("node_modules/.bin/prisma");
+  execSync(`${cmd} db push`);
+  log("SyncDatabase", "success");
+}
 main().catch((err) => console.error(err));
