@@ -1,7 +1,6 @@
 import { Row, Col } from "antd";
 import Link from "next/link";
-import { hexToString, hexToU8a } from "@polkadot/util";
-import isutf8 from "isutf8";
+import { hexToString, hexToU8a, isUtf8 } from "@polkadot/util";
 import styles from "./Args.module.css";
 import Balance from "./Balance";
 
@@ -88,7 +87,7 @@ function ArgValue({ type, value }) {
         <a>{value}</a>
       </Link>
     );
-  } else if (type === "Bytes" && isutf8(hexToU8a(value))) {
+  } else if (type === "Bytes" && isUtf8(hexToU8a(value))) {
     return <div>{hexToString(value)}</div>;
   }
   return <div>{value}</div>;

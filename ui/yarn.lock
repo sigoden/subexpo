@@ -2324,11 +2324,6 @@ isexe@^2.0.0:
   resolved "https://registry.yarnpkg.com/isexe/-/isexe-2.0.0.tgz#e8fbf374dc556ff8947a10dcb0572d633f2cfa10"
   integrity sha1-6PvzdNxVb/iUehDcsFctYz8s+hA=
 
-isutf8@^4.0.0:
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/isutf8/-/isutf8-4.0.0.tgz#8b0061a96cf896faff3f086d7efa4ae93be8a872"
-  integrity sha512-mJtsQGFfAphKdVuRitEpc0eon4v5fuaB6v9ZJIrLnIyybh02sIIwJ2RQbLMp6UICVCfquezllupZIVcqzGzCPg==
-
 jest-worker@27.0.0-next.5:
   version "27.0.0-next.5"
   resolved "https://registry.yarnpkg.com/jest-worker/-/jest-worker-27.0.0-next.5.tgz#5985ee29b12a4e191f4aae4bb73b97971d86ec28"
