@@ -5,7 +5,7 @@ export default function Balance({ balance }) {
   const { data } = useRequest(() => loadJson("/api/tokeninfo"), {
     cacheKey: "tokenInfo",
   });
-  if (data) {
+  if (data && data.tokenDecimals) {
     const tokenDecimals = parseInt(data.tokenDecimals[0]);
     let newBalance;
     if (balance === "0") {
