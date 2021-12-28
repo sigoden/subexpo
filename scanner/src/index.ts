@@ -495,20 +495,12 @@ function parseCallArgs(
   return { name, type, value, specialType };
 }
 
-interface ParsedEventArg {
-  type: string;
-  value: string;
-  specialType: string;
-}
-
-function parseEventArgs(
-  event: Event,
-  chainVersion: ChainVersion
-): ParsedEventArg[] {
+function parseEventArgs(event: Event, chainVersion: ChainVersion): ParsedArg[] {
   const { data, meta } = event;
   return data.map((arg, index) => {
     let type = meta.args[index].toString();
     const value = arg.toString();
+    const name = meta.fields[index].name.toString();
     const typeName = meta.fields[index].typeName.toString();
     const specialType = detectSpecialType(typeName || type, value);
     if (type.startsWith('{"_enum":{"Other":"Null"')) {
@@ -523,6 +515,7 @@ function parseEventArgs(
           dispatchErrorModule
         );
         value: return {
+          name,
           type,
           value: JSON.stringify(errorInfo),
           specialType,
@@ -530,6 +523,7 @@ function parseEventArgs(
       }
     }
     return {
+      name,
       type,
       value,
       specialType,
