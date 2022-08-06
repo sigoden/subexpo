@@ -8,6 +8,7 @@ import {
 import path from "path";
 import { execSync } from "child_process";
 import { ApiPromise, WsProvider } from "@polkadot/api";
+import { isU8a } from "@polkadot/util";
 import { extractAuthor } from "@polkadot/api-derive/type/util";
 import { HttpProvider } from "@polkadot/rpc-provider";
 import {
@@ -15,6 +16,7 @@ import {
   FunctionArgumentMetadataLatest,
   SignedBlock,
   DispatchError,
+  DispatchResult,
   Event,
   AccountId,
 } from "@polkadot/types/interfaces";
@@ -505,6 +507,12 @@ function parseEventArgs(event: Event, chainVersion: ChainVersion): ParsedArg[] {
     const specialType = detectSpecialType(typeName || type, value);
     if (type.startsWith('{"_enum":{"Other":"Null"')) {
       type = "DispatchError";
+    } else if (typeName == "DispatchResult") {
+      const arg_ = arg as DispatchResult;
+      if (arg_.isErr) {
+        type = "DispatchError";
+        arg = arg_.asErr;
+      }
     }
     if (type === "DispatchError") {
       const arg_: DispatchError = arg as DispatchError;
@@ -575,11 +583,12 @@ function lookupErrorInfo(
     const module = metadataObj[key].pallets.find(
       (v: any) => v.index === dispatchErrorModule.index.toString()
     );
+    const errorIndex = isU8a(dispatchErrorModule.error)
+      ? dispatchErrorModule.error[0].toString()
+      : dispatchErrorModule.error.toString();
     const error = metadataObj[key].lookup.types
       .find((v: any) => v.id === module.errors.type)
-      .type.def.Variant.variants.find(
-        (v: any) => v.index === dispatchErrorModule.error.toString()
-      );
+      .type.def.Variant.variants.find((v: any) => v.index === errorIndex);
     return {
       module: module.name,
       name: error.name,
